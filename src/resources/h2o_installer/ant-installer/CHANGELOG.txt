@@ -1,0 +1,217 @@
+CHANGELOG
+
+
+========================================
+version 0.2
+Fixed a bug with the ordering of targets.
+Added app-root element.
+Hid the passwords and added a new properties file renderer with more verbose output.
+Fiddled with windoze script. (help wanted its not good scripting)
+
+========================================
+version 0.3
+Introduced fixed basedir for build.xml files to remove dependency on current
+	directory.
+Introduced SelfExtractor code to deliver installers as a single Jar file.
+Fixed some intermittent bugs in the sysout.jar library.
+Improved feedback of running Ant tasks.
+Added different default values for windows and Unix for directories and files.
+Added an ifTarget attribute to conditionally show installation pages.
+Added a Date input type.
+
+========================================
+version 0.4
+Fixed un-important error in the install-config.xml for the demo application.
+Fixed more bugs in sysout.jar related to reusing the graphics buffer.
+Added popup to save/clear in the sysout.jar.
+Fixed double printing in sysout.jar.
+Added corner button to sysout.jar to jump to final message.
+UI improvements including focusing correct buttons and better layouts.
+Changes to the way Properties are saved internally in preparation for allowing 
+	${prop.name} syntax in future versions.
+
+========================================
+version 0.5
+Fixed an introduced bug when an input page is skipped in text mode.
+Added paging to the license page in text mode.
+Fixed bug printing passwords to properties file.
+Big internal changes to the way properties are stored and referenced 
+	to allow ${refs}.
+Other internal changes to the name of InputFields that do not actually 
+	collect input to OutputField.
+Allow the use of .. in file and directory references and display the 
+	correct absolute path reference.
+
+========================================
+version 0.6
+The XML DTD should be upgraded to 0.6 to use some new features.
+Added a modified version of JGoodies' (excelent) Look And Feel to reduce 
+	the size of the installers and include and option for anti-aliased fonts 
+	in the swing GUI. 
+	- Anti-aliasing is resource intensive but good looking.
+	- The package name has been changed to maintain compatibility on the classpath
+	  with the original JGoodies files, the new package is org.tp23.jgoodies.
+Added a splash page feature to show an image.
+Added an (optional) image to the extract progress window.
+Added a new input type large-select for drop down lists.
+Fixed errors from targets on the first page in the Swing UI. 
+Fixed errors if defaultValue is null. (however it should not be set to null)
+Fixed a bug in the selfextractor when the jar is saved in a path with spaces 
+	or other non text characters.
+Added documents about the scrolling in license page.
+Removed images from the default build of antinstaller.jar 
+	- Any existing builds that are to be upgraded and use the default images, 
+	  should add the images to the classpath. The images are included in the 
+	  download in the /images directory.
+The online manual has been updated, all the changes are included in the download.
+Added some of the new features to the examples and the AnInstaller installer.
+
+========================================
+version 0.7
+File and Directory choosers will now show hidden files .
+	Thanks to Markus Dueringer for the tip.
+Environment variables can now be accesses in default values with the 
+	${env.ProgramFiles} syntax. - thanks again to Markus Dueringer
+Also the Java system properties can be accessed with the "java." prefix. 
+	- e.g ${java.user.name}
+Show details button was not big enough in some LAFs - thanks to Mike Watts.
+There are known issues with the directory selector and the Metouia LAF, 
+	I can't replicate the issues but if you have problems.
+	a) use the modified JGoodies which apparently does not have this problem.
+	b) keep the stack traces and report them please!
+	When using the selfextractor from windows or X users will probably not 
+	see the errors anyway.
+Better defaulting is included for the Directory chooser	<page
+			 type="text"
+			 name="intro.1"
+			 displayText="HTML page"
+			 htmlResource="/resources/text.html"
+			 textResource="/resources/text.txt"
+			 overflow="true" />
+	the home directory will be shown less often, it was particularly annoying 
+	when the chooser is used to create a new directory
+
+========================================
+version 0.7.1
+Bug fix in Defaulting Directory Chooser that manifested in not being able to see 
+	directories in app-root.
+RFE-1154368 Can't install from a read only source fixed.
+	The log file is written to the temp dir if it cannot write to the current dir.
+	The ant.install.properties file is only written if it can be since it is 
+	primarily for debug.
+	- There is no requirement to add <property file="ant.install.properties"/> 
+	  to the build file any more properties will be added directly to the 
+	  build as with secret properties.
+
+========================================
+version 0.7.2
+Changed the implementation of the Progress Details so selecting text is now possible.
+	This is more stable too. It has the side effect of keeping the whole System.out 
+	and System.err in memory which is only an issue for veeerrry long builds on 
+	machines with too little RAM.
+Changed minor bug where directly edited (not via the chooser) file inputs were 
+	replaced with defaults if the user when back.
+Added TargetSelectInput by Mark Anderson providing the option of radio buttons 
+	for targets instead of checkboxes.
+Fixed an introduced bug launching from the root drive when ANT_HOME was not set.
+Introduced a new "NonExtractor" this is a replacement mechanism to the SelfExtractor.
+	The Jar is still used to run the installer but the files are not extracted 
+	by default. 
+	In the build.xml files should be specifically extracted using  unzip with 
+	nested patternsets to specify the files to extract.
+	This provide opportunities to improve the performance of installers.
+	Unzipping can now be performed directly into the installation directories rather 
+	than unzipping and then copying or moving.
+	Also the antinstaller classes and LookAndFeel and Xerces need no longer 
+	be extracted.
+Added an new feature to the ifProperty attribute so the property being tested can 
+	come from the environment or the java system properties.
+	for example ifProperty="${env.SHELL}=/bin/bash thanks to Eddyrun.
+	The old syntax of property=value is deprecated in favour of ${property}=value
+	N.B.  ${property}=${value} is NOT supported.
+Big internal changes to the Execution class to use a filter pattern currently 
+	hardcoded but with intent to allow pluggable pre and post install tasks.
+
+========================================
+version 0.7.3
+Added overflow="true" to simple input page.
+GridBag Layout used instead of absolute positioning modified to support overflow size
+	difference.
+More Images and Icons added to a separate download.
+Added GUI tools for Quick start.
+A Much more flexible ifProperty syntax supporting some standard operator with non 
+standard syntax (see the docs).
+Fixed a fatal introduced bug in the console version installer
+
+========================================
+version 0.7.4
+Added an optional feature to hide password on the console. set textMask="true".
+	N.B.  this does not work in eclipse's console and may not be a stable solution
+Implemented plugable filter chains to add steps to the install process.
+	An example releaseNotes plugin is provided.
+Added ext-validated type for pluggable field validation as yet unteset 
+	and undocumented.
+Added an Ant task to build installers using Ant.
+Added a modified version of the MetalLookAndFeel to reduce download size and still 
+	be able to get the required amount of text in labels and buttons.
+Added LookAndFeel names : "default"|"jgoodies", "greymetal" or "null" .
+Further testing to allow downloads without including xercesImpl.jar or xml-apis.jar
+Added progress pane enhancements to show the targets running for visual feedback of 
+	install progress without having to monitor the output logs which can be 
+	ugly/confusing.
+XMLValiation of test scripts and minor changes in the DTD.
+Extended validation of config and integrated validation into the installer Ant task.
+N.B. passing command line parameters to the build is an override of the detection 
+	method, start scripts should be modified if the default behaviour is requried.
+	e.g. java -cp $CP org.tp23.antinstaller.runtime.ExecInstaller default . 
+	will not override the default behaviour or trying X and falling back 
+	to text/console
+Added an untested feature for including arbitrary validation classes ExtValidated
+Assorted fixes for i18n.
+app-root no longer creates the directory if it is missing.
+
+========================================
+version 0.8
+Added features to load defaults from previous installs and perform almost silent 
+	installs property names and targets must not end with the string -targets, 
+	this is validated in the config checker.
+Comments expand property values.
+Multiline comments via use of explanatoryText and a null displayText value.
+Fixed a display bug in the progress renderer if there were more than 5 
+	targets and none that were dependencies.
+PropertyLoaderFilter added, any users with custom .fconfig files should 
+	ensure thier custom versions are still compatible.
+Added a release notes feature that is a tad tricky to install so 
+	contact for details.
+Added HTML page feature that allows using the Java HTML rendering to display 
+	a page of HTML property references are expanded so the page can contain 
+	${property.name} syntax to give feed back of selected properties.
+	Images are loaded from the classpath so the following syntax will locate 
+	and display an image &lt;img src="/resources/temazo.png"&gt;.
+	Java HTML rendering is poor at best and only html3.2 ,
+	so dont expect firefox quality rendering ;)
+	The java renderer handles PNG properly though so nice .
+	trancparency effects can be achieved.
+Fixed bug in validation if only target-selects are used.
+Extended i18n for antinstall-config.xml files using ResourceBundles 
+	called LanguagePack
+GUI tool for creating LanguagePack files.
+Changes to the Expression code for ifProperty attributes
+	The original syntax is not 100% compatible e.g.  my.property=value1
+	will not work it should be converted to ${my.property}=value1.
+Initial work on loading existing values if found to automate installs.
+	Not quite silent installs but save repeating entries.
+Added ability to stretch the GUI horizontally, but still using fixed widths.
+	Set the wide attribute in the installer element to configure width 
+	e.g. 600:275
+Added the ability to deliver different install types in the same Jar which 
+	can be selected on the command line with -type [install type].
+Added icons to the buttons in the swing GUI,  the installer Ant task now takes 
+	a new attribute called icons to specify which icon pack to use.
+Added ability to run special Ant tasks mid build, the same build-xml file is used
+	but the message rendering and logging is different in the antinstaller- tasks
+Added icons for kde and windows to the AntInstaller SelfExtractor, lots of Ant 
+	hacking to avoid extra dependencies.
+Migrated classes from sysout.jar into the core src packages
+Renamed ant-ext.jar to ant-installer-ext.jar  
+	all build files will need to be updated

@@ -1,0 +1,288 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<!-- Parent Details -->
+	<parent>
+		<groupId>hk.hku.cecid</groupId>
+		<artifactId>h2o</artifactId>
+		<version>1.0</version>
+	</parent>
+	
+	<!-- Module Details -->
+	<artifactId>corvus-ebms</artifactId>
+	<packaging>jar</packaging>
+	<version>1.0</version>
+	<name>corvus-ebms</name>
+	<description>corvus-ebms in maven</description>
+	
+	<!-- corvus-ebms Properties -->
+	<properties>
+		<local_installer.path>${project.parent.basedir}/target/local_installer</local_installer.path>
+		<embedded_h2o.path>${project.parent.basedir}/target/embedded_h2o</embedded_h2o.path>
+		<h2o_installer.path>${project.parent.basedir}/target/h2o_installer</h2o_installer.path>
+	</properties>
+	
+	<!-- Build Configuration -->
+	<build>
+	    <plugins>
+	    	<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<executions>
+					<execution>
+					<id>source</id>
+					<phase>package</phase>
+					<goals>
+						<goal>jar</goal>
+					</goals>
+					</execution>
+				</executions>	
+			</plugin>
+			<plugin>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>install</id>
+						<phase>install</phase>
+						<configuration>
+							<tasks>
+								<!-- add the ant tasks from ant-contrib -->
+								<taskdef resource="net/sf/antcontrib/antcontrib.properties" />
+								
+								<!-- Rename jar to spa -->
+								<copy file="target/${project.name}-${project.version}.jar" toFile="target/${project.name}-${project.version}.spa" />
+								
+								<!-- ***************************** -->
+								<!--    For maven jetty plugin     -->
+								<!-- ***************************** -->
+								<if>
+									<equals arg1="${build.local_installer}" arg2="true" />
+									<then>
+										<!-- Remove the hk.hku.cecid.ebms folder -->
+										<delete dir="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms"/>
+										
+										<!-- Copy the plugin to h2o plugins folder for corvus jetty:run -->
+										<copy todir="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms">
+											<fileset dir="target/classes/spa" />
+										</copy>
+										
+										<!-- Replace plugin.xml -->
+										<replace file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms/plugin.xml" token="@version@" value="${project.version}" />
+										<replace file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms/plugin.xml" token="@jar@" value="${project.name}-${project.version}.jar" />
+										
+										<!-- Replace log4j.properties.xml -->
+										<replace
+											file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/log4j.properties.xml"
+											token="@program.dir@"
+											value="${local_installer.path}"
+										/>
+										<replace
+											file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/log4j.properties.xml"
+											token="\"
+											value="/"
+										/>
+										
+										<!-- Repalce ebms.module.xml -->
+										<replace
+											file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@jdbc.driver@"
+											value="org.hsqldb.jdbcDriver"
+										/>
+										<replace
+											file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@jdbc.url@"
+											value="jdbc:hsqldb:file:${local_installer.path}/hsqldb/data/ebms"
+										/>
+										<replace
+											file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@username@"
+											value="corvus"
+										/>
+										<replace
+											file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@password@"
+											value="corvus"
+										/>
+										<replace
+											file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@validation.query@"
+											value="select 1 from INFORMATION_SCHEMA.SYSTEM_USERS"
+										/>
+										<replace
+											file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@dao.file@"
+											value="hk/hku/cecid/ebms/spa/conf/ebms.dao.xml"
+										/>
+										<replace
+											file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@program.dir@"
+											value="${local_installer.path}"
+										/>
+										
+										<!-- Copy the jar(no token replacement inside) to the plugin folder -->
+										<copy file="target/${project.name}-${project.version}.jar" todir="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms" />
+										
+										<!-- Copy the ebms-pkg.jar in ebxml-pkg module to the plugin folder -->
+										<copy file="../ebxml-pkg/target/ebms-pkg.jar" todir="${local_installer.path}/hermes2/plugins/hk.hku.cecid.ebms" />
+									</then>
+								</if>
+								
+								<!-- ***************************** -->
+								<!-- For building the embedded h2o -->
+								<!-- ***************************** -->
+								<if>
+									<equals arg1="${build.embedded_h2o}" arg2="true" />
+									<then>
+										<!-- Copy the plugin to embedded h2o plugins folder -->
+										<copy todir="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms">
+											<fileset dir="target/classes/spa" />
+										</copy>
+										
+										<!-- Replace plugin.xml -->
+										<replace file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms/plugin.xml" token="@version@" value="${project.version}" />
+										<replace file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms/plugin.xml" token="@jar@" value="${project.name}-${project.version}.jar" />
+										
+										<!-- Replace log4j.properties.xml -->
+										<replace
+											file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/log4j.properties.xml"
+											token="@program.dir@"
+											value="@ProgramDir@"
+										/>
+										
+										<!-- Repalce ebms.module.xml -->
+										<replace
+											file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@jdbc.driver@"
+											value="org.hsqldb.jdbcDriver"
+										/>
+										<replace
+											file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@jdbc.url@"
+											value="jdbc:hsqldb:file:@ProgramDir@/hsqldb/data/ebms"
+										/>
+										<replace
+											file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@username@"
+											value="corvus"
+										/>
+										<replace
+											file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@password@"
+											value="corvus"
+										/>
+										<replace
+											file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@validation.query@"
+											value="select 1 from INFORMATION_SCHEMA.SYSTEM_USERS"
+										/>
+										<replace
+											file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@dao.file@"
+											value="hk/hku/cecid/ebms/spa/conf/ebms.dao.xml"
+										/>
+										<replace
+											file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@program.dir@"
+											value="@ProgramDir@"
+										/>
+										
+										<!-- Copy the jar(no token replacement inside) to the plugin folder -->
+										<copy file="target/${project.name}-${project.version}.jar" todir="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms" />
+										
+										<!-- Copy the ebms-pkg.jar in ebxml-pkg module to the plugin folder -->
+										<copy file="../ebxml-pkg/target/ebms-pkg.jar" todir="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.ebms" />
+									</then>
+								</if>
+								
+								<!-- ****************************** -->
+								<!-- For building the h2o installer -->
+								<!-- ****************************** -->
+								<if>
+									<equals arg1="${build.h2o_installer}" arg2="true" />
+									<then>
+										<!-- Copy the plugin to h2o installer plugins folder -->
+										<copy todir="${h2o_installer.path}/plugins/hk.hku.cecid.ebms">
+											<fileset dir="target/classes/spa" />
+										</copy>
+										
+										<!-- Replace plugin.xml -->
+										<replace file="${h2o_installer.path}/plugins/hk.hku.cecid.ebms/plugin.xml" token="@version@" value="${project.version}" />
+										<replace file="${h2o_installer.path}/plugins/hk.hku.cecid.ebms/plugin.xml" token="@jar@" value="${project.name}-${project.version}.jar" />
+										
+										<!-- Replace log4j.properties.xml -->
+										<replace
+											file="${h2o_installer.path}/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/log4j.properties.xml"
+											token="@program.dir@"
+											value="@convert@"
+										/>
+										
+										<!-- Repalce ebms.module.xml -->
+										<replace
+											file="${h2o_installer.path}/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@jdbc.driver@"
+											value="@ebmsDriverClass@"
+										/>
+										<replace
+											file="${h2o_installer.path}/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@jdbc.url@"
+											value="@ebmsConnStr@"
+										/>
+										<replace
+											file="${h2o_installer.path}/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@username@"
+											value="@ebmsuser@"
+										/>
+										<replace
+											file="${h2o_installer.path}/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@password@"
+											value="@ebmspw@"
+										/>
+										<replace
+											file="${h2o_installer.path}/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@validation.query@"
+											value="@ebmsValidationQuery@"
+										/>
+										<replace
+											file="${h2o_installer.path}/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@dao.file@"
+											value="@ebmsDAOFile@"
+										/>
+										<replace
+											file="${h2o_installer.path}/plugins/hk.hku.cecid.ebms/conf/hk/hku/cecid/ebms/spa/conf/ebms.module.xml"
+											token="@program.dir@/hermes2"
+											value="@convert@"
+										/>
+										
+										<!-- Copy the jar(no token replacement inside) to the plugin folder -->
+										<copy file="target/${project.name}-${project.version}.jar" todir="${h2o_installer.path}/plugins/hk.hku.cecid.ebms" />
+										
+										<!-- Copy the ebms-pkg.jar in ebxml-pkg module to the plugin folder -->
+										<copy file="../ebxml-pkg/target/ebms-pkg.jar" todir="${h2o_installer.path}/plugins/hk.hku.cecid.ebms" />
+									</then>
+								</if>
+							</tasks>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+	
+	<!-- Project Dependencies -->
+	<dependencies>
+		<!-- Modules dependencies -->
+		<dependency>
+			<groupId>hk.hku.cecid</groupId>
+			<artifactId>piazza-commons</artifactId>
+			<version>1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>hk.hku.cecid</groupId>
+			<artifactId>ebxml-pkg</artifactId>
+			<version>1.0</version>
+		</dependency>
+	</dependencies>
+</project>

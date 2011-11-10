@@ -1,0 +1,356 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<!-- Parent Details -->
+	<parent>
+		<groupId>hk.hku.cecid</groupId>
+		<artifactId>h2o</artifactId>
+		<version>1.0</version>
+	</parent>
+	
+	<!-- Module Details -->
+	<artifactId>corvus</artifactId>
+	<packaging>war</packaging>
+	<version>1.0</version>
+	<name>corvus</name>
+	<description>corvus in maven</description>
+	
+	<!-- corvus Properties -->
+	<properties>
+		<h2o.path>${project.parent.basedir}</h2o.path>
+		<local_installer.path>${project.parent.basedir}/target/local_installer</local_installer.path>
+		<embedded_h2o.path>${project.parent.basedir}/target/embedded_h2o</embedded_h2o.path>
+		<h2o_installer.path>${project.parent.basedir}/target/h2o_installer</h2o_installer.path>
+	</properties>
+	
+	
+	<!-- Build Configuration -->
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-antrun-plugin</artifactId>
+        <version>1.3</version>
+				<executions>
+					<!--execution>
+						<id>initialize</id>
+						<phase>initialize</phase>
+						<configuration>
+							<tasks>
+								<echo>${h2o.path}</echo>
+								<echo>${local_installer.path}</echo>
+								<echo>${java.home}</echo>
+							</tasks>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution-->
+					<execution>
+						<id>install</id>
+						<phase>install</phase>
+						<configuration>
+							<tasks>
+								<!-- add the ant tasks from ant-contrib -->
+								<taskdef resource="net/sf/antcontrib/antcontrib.properties" />
+								
+								<!-- ***************************** -->
+								<!--    For maven jetty plugin     -->
+								<!-- ***************************** -->
+								<if>
+									<equals arg1="${build.local_installer}" arg2="true" />
+									<then>
+										<!-- Remove the current corvus.properties.xml and corvus.log.properties.xml -->
+										<delete file="src/main/webapp/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml"/>
+										<delete file="src/main/webapp/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml"/>
+										
+										<!-- Copy a new corvus.properties.xml from corvus.properties.xml.source -->
+										<copy
+											file="src/main/webapp/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml.source"
+											tofile="src/main/webapp/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml"
+										/>
+										
+										<!-- Copy a new corvus.log.properties.xml from corvus.log.properties.xml.source -->
+										<copy
+											file="src/main/webapp/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml.source"
+											tofile="src/main/webapp/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml"
+										/>
+										
+										<!-- Replace corvus.properties.xml in target -->
+										<replace file="src/main/webapp/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml" token="@home@" value="${local_installer.path}/hermes2/" />
+										<replace file="src/main/webapp/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml" token="@registry@" value="${local_installer.path}/hermes2/plugins" />
+										<replace file="src/main/webapp/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml" token="\" value="/" />
+										
+										<!-- Replace corvus.log.properties.xml in target -->
+										<replace file="src/main/webapp/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml" token="@program.dir@" value="${local_installer.path}" />
+										<replace file="src/main/webapp/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml" token="\" value="/" />
+										
+										<!-- Copy the hsqldb and web service sample to ${local_installer.path} -->
+										<copy todir="${local_installer.path}">
+											<fileset dir="${h2o.path}/src/resources/local_installer" />
+										</copy>
+									</then>
+								</if>
+								
+								<!-- ***************************** -->
+								<!-- For building the embedded h2o -->
+								<!-- ***************************** -->
+								<if>
+									<equals arg1="${build.embedded_h2o}" arg2="true" />
+									<then>
+										<!-- Remove the old corvus.properties.xml and corvus.log.properties.xml -->
+										<delete file="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml"/>
+										<delete file="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml"/>
+										
+										<!-- Copy a new corvus.properties.xml from corvus.properties.xml.source -->
+										<copy
+											file="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml.source"
+											tofile="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml"
+										/>
+										
+										<!-- Copy a new corvus.log.properties.xml from corvus.log.properties.xml.source -->
+										<copy
+											file="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml.source"
+											tofile="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml"
+										/>
+										
+										<!-- Copy the built corvus project to the embedded_h2o.path -->
+										<copy todir="${embedded_h2o.path}/hermes2/webapps/corvus">
+											<fileset dir="target/${project.name}-${project.version}" />
+										</copy>
+										
+										<!-- Replace corvus.properties.xml -->
+										<replace
+											file="${embedded_h2o.path}/hermes2/webapps/corvus/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml"
+											token="@home@"
+											value="@ProgramDir@/hermes2/"
+										/>
+										<replace
+											file="${embedded_h2o.path}/hermes2/webapps/corvus/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml"
+											token="@registry@"
+											value="@ProgramDir@/hermes2/plugins"
+										/>
+										
+										<!-- Replace corvus.log.properties.xml -->
+										<replace
+											file="${embedded_h2o.path}/hermes2/webapps/corvus/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml"
+											token="@program.dir@"
+											value="@ProgramDir@"
+										/>
+										
+										<!-- Copy the jetty, hsqldb and the web service sample for building the embedded h2o -->
+										<copy todir="${embedded_h2o.path}">
+											<fileset dir="${h2o.path}/src/resources/embedded_h2o" />
+										</copy>
+										
+										<!-- Enable/Disable sfrm in path.xml -->
+										<if>
+											<equals arg1="${sfrm}" arg2="true" />
+											<then>
+												<replace
+													file="${embedded_h2o.path}/path.xml"
+													token="@sfrm.comment.start@"
+													value=""
+												/>
+												<replace
+													file="${embedded_h2o.path}/path.xml"
+													token="@sfrm.comment.end@"
+													value=""
+												/>
+											</then>
+											<else>
+												<replace
+													file="${embedded_h2o.path}/path.xml"
+													token="@sfrm.comment.start@"
+													value="&lt;!--"
+												/>
+												<replace
+													file="${embedded_h2o.path}/path.xml"
+													token="@sfrm.comment.end@"
+													value="--&gt;"
+												/>
+											</else>
+										</if>
+										
+										<!-- Replace for as2/as2plus in path.xml -->
+										<if>
+											<equals arg1="${as2plus}" arg2="true" />
+											<then>
+												<replace
+													file="${embedded_h2o.path}/path.xml"
+													token="@as2.path@"
+													value="./hermes2/plugins/hk.hku.cecid.edi.as2plus"
+												/>
+												<replace
+													file="${embedded_h2o.path}/path.xml"
+													token="@as2.database@"
+													value="as2plus"
+												/>
+											</then>
+											<else>
+												<replace
+													file="${embedded_h2o.path}/path.xml"
+													token="@as2.path@"
+													value="./hermes2/plugins/hk.hku.cecid.edi.as2"
+												/>
+												<replace
+													file="${embedded_h2o.path}/path.xml"
+													token="@as2.database@"
+													value="as2"
+												/>
+											</else>
+										</if>
+									</then>
+								</if>
+								
+								<!-- ****************************** -->
+								<!-- For building the h2o installer -->
+								<!-- ****************************** -->
+								<if>
+									<equals arg1="${build.h2o_installer}" arg2="true" />
+									<then>
+										<!-- Remove the old corvus.properties.xml and corvus.log.properties.xml -->
+										<delete file="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml"/>
+										<delete file="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml"/>
+										
+										<!-- Copy a new corvus.properties.xml from corvus.properties.xml.source -->
+										<copy
+											file="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml.source"
+											tofile="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml"
+										/>
+										
+										<!-- Copy a new corvus.log.properties.xml from corvus.log.properties.xml.source -->
+										<copy
+											file="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml.source"
+											tofile="target/${project.name}-${project.version}/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml"
+										/>
+										
+										<!-- Copy the built corvus project to the embedded_h2o.path -->
+										<copy todir="${h2o_installer.path}/webapps/corvus">
+											<fileset dir="target/${project.name}-${project.version}" />
+										</copy>
+										
+										<!-- Replace corvus.properties.xml -->
+										<replace
+											file="${h2o_installer.path}/webapps/corvus/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml"
+											token="@home@"
+											value="@coreDir@/"
+										/>
+										<replace
+											file="${h2o_installer.path}/webapps/corvus/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.properties.xml"
+											token="@registry@"
+											value="@convert@/plugins"
+										/>
+										
+										<!-- Replace corvus.log.properties.xml -->
+										<replace
+											file="${h2o_installer.path}/webapps/corvus/WEB-INF/classes/hk/hku/cecid/piazza/corvus/core/conf/corvus.log.properties.xml"
+											token="@program.dir@"
+											value="@convert@"
+										/>
+										
+										<!-- Copy the web service sample libs to ${h2o_installer.path} -->
+										<copy todir="${h2o_installer.path}">
+											<fileset dir="${h2o.path}/src/resources/h2o_installer" />
+										</copy>
+									</then>
+								</if>
+							</tasks>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.mortbay.jetty</groupId>
+				<artifactId>maven-jetty-plugin</artifactId>
+				<version>6.1.21</version>
+				<configuration>
+					<connectors>
+						<connector implementation="org.mortbay.jetty.nio.SelectChannelConnector">
+							<port>8080</port>
+							<maxIdleTime>30000</maxIdleTime>
+						</connector>
+					</connectors>
+					<userRealms>
+						<userRealm implementation="org.mortbay.jetty.security.HashUserRealm">
+							<name>Corvus Restricted Area</name>
+							<config>jetty/realm.properties</config>
+						</userRealm>
+					</userRealms>
+					<requestLog implementation="org.mortbay.jetty.NCSARequestLog">
+						<filename>${local_installer.path}/logs/jetty-request.yyyy_mm_dd.log</filename>
+						<filenameDateFormat>yyyy_MM_dd</filenameDateFormat>
+						<retainDays>90</retainDays>
+						<append>true</append>
+						<extended>false</extended>
+						<logCookies>false</logCookies>
+						<logTimeZone>GMT</logTimeZone>
+					</requestLog>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-war-plugin</artifactId>
+				<version>2.1-beta-1</version>
+				<configuration>
+					<attachClasses>true</attachClasses>
+				</configuration>
+			</plugin>
+	    </plugins>
+	</build>
+	
+	<!-- Project Dependencies -->
+	<dependencies>
+		<!-- Modules dependencies -->
+		<dependency>
+			<groupId>hk.hku.cecid</groupId>
+			<artifactId>piazza-commons</artifactId>
+			<version>1.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>jboss</groupId>
+					<artifactId>jboss-j2ee</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.jmock</groupId>
+					<artifactId>jmock</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.jmock</groupId>
+					<artifactId>jmock-legacy</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>junit</groupId>
+					<artifactId>junit</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>oracle</groupId>
+					<artifactId>ojdbc14</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>postgresql</groupId>
+					<artifactId>postgresql</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>hk.hku.cecid</groupId>
+			<artifactId>piazza-commons-extension</artifactId>
+			<version>1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-fileupload</groupId>
+			<artifactId>commons-fileupload</artifactId>
+			<version>1.0</version>
+		</dependency>
+	</dependencies>
+</project>

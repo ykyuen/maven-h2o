@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<module id="sfrm.outgoing.segmented.payloads.collector" name="SFRM Plugin" version="1.0">
+	
+	<parameters>
+		<parameter name="execution-interval" value="8000" />
+	</parameters>
+
+	<component id="task-list" name="Outgoing Segmented Payloads Collector Module">
+		<class>hk.hku.cecid.edi.sfrm.task.OutgoingSegmentPayloadsCollector</class>
+		<parameter name="max-task-per-list" value="100" />
+		<!-- 
+		<parameter name="max-task-per-payload" value="100" />
+		-->
+		<parameter name="max-thread-count" value="10" />
+	</component>
+
+</module>

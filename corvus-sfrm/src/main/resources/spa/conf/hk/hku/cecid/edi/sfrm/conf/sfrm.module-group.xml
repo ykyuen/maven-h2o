@@ -1,0 +1,26 @@
+<module-group name="SFRM Module Group">
+	<module>
+		<class>hk.hku.cecid.piazza.commons.module.SystemModule</class>
+		<descriptor>hk/hku/cecid/edi/sfrm/conf/sfrm.module.core.xml</descriptor>
+	</module>
+	<module>	
+		<class>hk.hku.cecid.piazza.commons.module.ActiveTaskModule</class>
+		<descriptor>hk/hku/cecid/edi/sfrm/conf/sfrm.outgoing.payloads.collector.xml</descriptor>
+	</module>
+	<module>
+		<class>hk.hku.cecid.piazza.commons.module.ActiveTaskModule</class>
+		<descriptor>hk/hku/cecid/edi/sfrm/conf/sfrm.outgoing.packaged.payloads.collector.xml</descriptor>
+	</module>	
+	<module>
+		<class>hk.hku.cecid.piazza.commons.module.ActiveTaskModule</class>
+		<descriptor>hk/hku/cecid/edi/sfrm/conf/sfrm.outgoing.segmented.payloads.collector.xml</descriptor>
+	</module>
+	<!--<module>
+		<class>hk.hku.cecid.piazza.commons.module.ActiveTaskModule</class>
+		<descriptor>hk/hku/cecid/edi/sfrm/conf/sfrm.incoming.segmented.payloads.collector.xml</descriptor>
+	</module>-->
+	<module>
+		<class>hk.hku.cecid.piazza.commons.module.ActiveTaskModule</class>
+		<descriptor>hk/hku/cecid/edi/sfrm/conf/sfrm.incoming.payloads.collector.xml</descriptor>
+	</module>
+</module-group>

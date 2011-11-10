@@ -1,0 +1,154 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<!-- Parent Details -->
+	<parent>
+		<groupId>hk.hku.cecid</groupId>
+		<artifactId>h2o</artifactId>
+		<version>1.0</version>
+	</parent>
+	
+	<!-- Module Details -->
+	<artifactId>corvus-as2plus-admin</artifactId>
+	<packaging>jar</packaging>
+	<version>1.0</version>
+	<name>corvus-as2plus-admin</name>
+	<description>corvus-as2plus-admin in maven</description>
+	
+	<!-- corvus-as2plus-admin Properties -->
+	<properties>
+		<local_installer.path>${project.parent.basedir}/target/local_installer</local_installer.path>
+		<embedded_h2o.path>${project.parent.basedir}/target/embedded_h2o</embedded_h2o.path>
+		<h2o_installer.path>${project.parent.basedir}/target/h2o_installer</h2o_installer.path>
+	</properties>
+	
+	<!-- Project Dependencies -->
+	<build>
+	    <plugins>
+	    	<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<executions>
+					<execution>
+					<id>source</id>
+					<phase>package</phase>
+					<goals>
+						<goal>jar</goal>
+					</goals>
+					</execution>
+				</executions>	
+			</plugin>
+			<plugin>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+					<id>install</id>
+						<phase>install</phase>
+						<configuration>
+							<tasks>
+								<!-- add the ant tasks from ant-contrib -->
+								<taskdef resource="net/sf/antcontrib/antcontrib.properties" />
+								
+								<!-- Rename jar to spa -->
+								<copy file="target/${project.name}-${project.version}.jar" toFile="target/${project.name}-${project.version}.spa" />
+								
+								<if>
+									<equals arg1="${as2plus}" arg2="true" />
+									<then>
+										<!-- ***************************** -->
+										<!--    For maven jetty plugin     -->
+										<!-- ***************************** -->
+										<if>
+											<equals arg1="${build.local_installer}" arg2="true" />
+											<then>
+												<!-- Remove the hk.hku.cecid.edi.as2plus.admin folder -->
+												<delete dir="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus.admin"/>
+												
+												<!-- Copy the plugin to h2o plugins folder for corvus jetty:run -->
+												<copy todir="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus.admin">
+													<fileset dir="target/classes/spa" />
+												</copy>
+												
+												<!-- Replace plugin.xml -->
+												<replace file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus.admin/plugin.xml" token="@version@" value="${project.version}" />
+												<replace file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus.admin/plugin.xml" token="@jar@" value="${project.name}-${project.version}.jar" />
+												
+												<!-- Copy the jar(no token replacement inside) to the plugin folder -->
+												<copy file="target/${project.name}-${project.version}.jar" todir="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus.admin" />
+											</then>
+										</if>
+										
+										<!-- ***************************** -->
+										<!-- For building the embedded h2o -->
+										<!-- ***************************** -->
+										<if>
+											<equals arg1="${build.embedded_h2o}" arg2="true" />
+											<then>
+												<!-- Copy the plugin to embedded h2o plugins folder -->
+												<copy todir="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus.admin">
+													<fileset dir="target/classes/spa" />
+												</copy>
+												
+												<!-- Replace plugin.xml -->
+												<replace file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus.admin/plugin.xml" token="@version@" value="${project.version}" />
+												<replace file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus.admin/plugin.xml" token="@jar@" value="${project.name}-${project.version}.jar" />
+												
+												<!-- Copy the jar(no token replacement inside) to the plugin folder -->
+												<copy file="target/${project.name}-${project.version}.jar" todir="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus.admin" />
+											</then>
+										</if>
+									</then>
+								</if>
+								
+								<!-- ****************************** -->
+								<!-- For building the h2o installer -->
+								<!-- ****************************** -->
+								<if>
+									<equals arg1="${build.h2o_installer}" arg2="true" />
+									<then>
+										<!-- Copy the plugin to h2o installer plugins folder -->
+										<copy todir="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus.admin">
+											<fileset dir="target/classes/spa" />
+										</copy>
+										
+										<!-- Replace plugin.xml -->
+										<replace file="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus.admin/plugin.xml" token="@version@" value="${project.version}" />
+										<replace file="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus.admin/plugin.xml" token="@jar@" value="${project.name}-${project.version}.jar" />
+										
+										<!-- Copy the jar(no token replacement inside) to the plugin folder -->
+										<copy file="target/${project.name}-${project.version}.jar" todir="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus.admin" />
+									</then>
+								</if>
+							</tasks>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+	
+	<!-- Dependency Management -->
+	<dependencies>
+		<!-- Modules dependencies -->
+		<dependency>
+			<groupId>hk.hku.cecid</groupId>
+			<artifactId>corvus-as2plus</artifactId>
+			<version>1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>hk.hku.cecid</groupId>
+			<artifactId>corvus-main-admin</artifactId>
+			<version>1.0</version>
+		</dependency>
+		
+		<!-- From /lib -->
+		<dependency>
+			<groupId>commons-fileupload</groupId>
+			<artifactId>commons-fileupload</artifactId>
+			<version>1.0</version>
+		</dependency>
+	</dependencies>
+</project>
