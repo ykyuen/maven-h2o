@@ -1,6 +1,0 @@
-<sfrm>		
-	<trusted-certificates>@program.dir@/hermes2/plugins/hk.hku.cecid.edi.sfrm/sfrm_certificates/public_certs</trusted-certificates>
-	<segment-size>1024000</segment-size>			
-	<max-payload-size>5046586573</max-payload-size>
-	<speed-tick-interval>1000</speed-tick-interval>
-</sfrm>
