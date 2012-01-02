@@ -104,6 +104,9 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
                     .getParameter("message_box"));
             String status = checkEmptyAndConvertToPercent(request
                     .getParameter("status"));
+            
+            String primalMessageId = checkNullAndReturnEmpty(request
+            		.getParameter("primal_message_id"));
 
             String numOfMessages = request.getParameter("num_of_messages");
             if (numOfMessages != null) {
@@ -140,7 +143,8 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
             messageDAOData.setAs2From(as2From);
             messageDAOData.setAs2To(as2To);
             messageDAOData.setMessageBox(messageBox);
-            messageDAOData.setStatus(status);			
+            messageDAOData.setStatus(status);
+            messageDAOData.setPrimalMessageId(primalMessageId);
 			
 			messageIterator = findMessageWithPagination(messageDAOData, messageDAO, numberOfMessagesInt, offsetInt, displayLastInt, isTime);
 			/*
@@ -173,6 +177,7 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
         dom.setProperty("search_criteria/message_time",String.valueOf(displayLastInt));
         dom.setProperty("search_criteria/offset", String.valueOf(offsetInt));
         dom.setProperty("search_criteria/is_detail", String.valueOf(isDetail));
+        dom.setProperty("search_criteria/primal_message_id", request.getParameter("primal_message_id"));
 
         for (int pi = 1; messageIterator.hasNext(); pi++) {
             MessageDVO returnData = (MessageDVO) messageIterator.next();
@@ -187,6 +192,8 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
                     checkNullAndReturnEmpty(returnData.getAs2To()));
             dom.setProperty("message[" + pi + "]/time_stamp", returnData
                     .getTimeStamp().toString());
+            dom.setProperty("message[" + pi + "]/primal_message_id",
+                    checkNullAndReturnEmpty(returnData.getPrimalMessageId()));
             dom.setProperty("message[" + pi + "]/status",
                     checkNullAndReturnEmpty(returnData.getStatus()));
             dom.setProperty("message[" + pi + "]/is_acknowledged", String
@@ -195,6 +202,8 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
                     .valueOf(returnData.isReceipt()));
             dom.setProperty("message[" + pi + "]/is_receipt_requested", String
                     .valueOf(returnData.isReceiptRequested()));
+            dom.setProperty("message[" + pi + "]/has_resend_as_new",
+                    checkNullAndReturnEmpty(returnData.getHasResendAsNew()));
 
             if (isDetail) {
                 dom.setProperty("message[" + pi + "]/receipt_url",

@@ -22,6 +22,7 @@ import javax.xml.soap.MessageFactory;
 import javax.xml.soap.MimeHeaders;
 import javax.xml.soap.SOAPException;
 import javax.xml.soap.SOAPMessage;
+import javax.xml.soap.SOAPConstants;
 
 import hk.hku.cecid.piazza.commons.net.ConnectionException;
 import hk.hku.cecid.piazza.commons.test.utils.FixtureStore;
@@ -64,7 +65,7 @@ public class SOAPMailSenderTest extends TestCase{
         MimeMessage mimeMsg = null;
         MimeHeaders mimeHeaders = new MimeHeaders();
         
-        InputStream contentStream = FIXTURE_LOADER.getResourceAsStream("hk.hku.cecid.piazza.commons.soap.SOAPMailSenderTest/mime_message_content.dat");		
+        InputStream contentStream = FIXTURE_LOADER.getResourceAsStream("mime_message_content.dat");		
         mimeHeaders.setHeader("Content-Type", "text/xml; charset=utf-8");
         
         /* 
@@ -73,7 +74,7 @@ public class SOAPMailSenderTest extends TestCase{
          */ 
         try {
 			soapMessage = 
-				MessageFactory.newInstance().createMessage(mimeHeaders,contentStream);
+				MessageFactory.newInstance(SOAPConstants.SOAP_1_1_PROTOCOL).createMessage(mimeHeaders,contentStream);
 		} catch (IOException e) {
 			e.printStackTrace();
 			Assert.fail("Failed on loading the content inputstream\n"+e.getMessage());
@@ -154,7 +155,7 @@ public class SOAPMailSenderTest extends TestCase{
 	         */ 
 	        try {
 				soapMessage = 
-					MessageFactory.newInstance().createMessage(mimeHeaders,contentStream);
+					MessageFactory.newInstance(SOAPConstants.SOAP_1_1_PROTOCOL).createMessage(mimeHeaders,contentStream);
 			} catch (IOException e) {
 				e.printStackTrace();
 				Assert.fail("Failed on loading the content inputstream\n"+e.getMessage());
@@ -191,7 +192,7 @@ public class SOAPMailSenderTest extends TestCase{
 			InputStream data = FIXTURE_LOADER.getResourceAsStream("mime_message_content.dat");
 			mimeHeaders.setHeader("Content-Type", "text/xml; charset=utf-8");
 			soapMessage = 
-				MessageFactory.newInstance().createMessage(mimeHeaders,data);
+				MessageFactory.newInstance(SOAPConstants.SOAP_1_1_PROTOCOL).createMessage(mimeHeaders,data);
 			ByteArrayOutputStream sampleContentStream = new ByteArrayOutputStream();
 			
 			OutputStream os = MimeUtility.encode(sampleContentStream, "base64");

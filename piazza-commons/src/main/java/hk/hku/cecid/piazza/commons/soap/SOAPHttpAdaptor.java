@@ -18,10 +18,12 @@ import hk.hku.cecid.piazza.commons.util.Headers;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.util.Iterator;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.xml.soap.MessageFactory;
+import javax.xml.soap.MimeHeader;
 import javax.xml.soap.MimeHeaders;
 import javax.xml.soap.SOAPException;
 import javax.xml.soap.SOAPFactory;
@@ -166,6 +168,34 @@ public abstract class SOAPHttpAdaptor extends HttpRequestAdaptor implements
                 else {
                     response.setContentType(null);
                 }
+                
+                MimeHeaders replyHeaders = replyMessage.getMimeHeaders();
+                Iterator iter = replyHeaders.getAllHeaders();
+                while (iter.hasNext()) {
+                	MimeHeader header = (MimeHeader)iter.next();
+                	
+        			// .Net only supports Multipart/Related MIME type in small letter 
+                	String newValue = "";
+                	if ("Content-Type".equals(header.getName())) {
+                		String value = header.getValue();
+                		
+                		String[] values = value.split(";");
+                		for (String s: values) {
+                			s = s.trim();
+                			
+                			if (s.toLowerCase().startsWith("multipart")) 
+                				s = s.toLowerCase();
+                			
+            				if ("".equals(newValue))
+            					newValue = s;
+            				else
+            					newValue += "; " + s;	
+                		}
+
+                		replyMessage.getMimeHeaders().setHeader("Content-Type", newValue);
+                	}
+                }
+                
                 headers.putMimeHeaders(replyMessage.getMimeHeaders());
 
                 /*

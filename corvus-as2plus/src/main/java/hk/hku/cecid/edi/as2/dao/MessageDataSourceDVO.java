@@ -231,4 +231,41 @@ public class MessageDataSourceDVO extends DataSourceDVO implements
     public String getStatusDescription() {
         return super.getString("statusDesc");
     }
+
+    /**
+     * @return The primalMessageID which represent the message triggered "Resend as New"
+     */
+	public String getPrimalMessageId() {
+		return super.getString("primalMessageId");
+	}
+
+    /**
+     * Set the primalMessageID which represent the message triggered "Resend as New"
+     * @param primalMessageId
+     */
+	public void setPrimalMessageId(String primalMessageId) {
+		super.setString("primalMessageId", primalMessageId);
+	}
+	
+    /**
+     * @return "true" if message has triggered "Resend as New", "false" if otherwise
+     */
+	public String getHasResendAsNew() {
+		return super.getString("hasResendAsNew");
+	}
+
+    /**
+     * @param hasResendAsNew Set to "true" if message has triggered "Resend as New", "false" if otherwise
+     */
+	public void setHasResendAsNew(String hasResendAsNew) {
+		super.setString("hasResendAsNew", hasResendAsNew);		
+	}
+	
+	public String getPartnershipId() {
+		return super.getString("partnershipId");
+	}
+	
+	public void setPartnershipId(String partnershipId) {
+		super.setString("partnershipId", partnershipId);
+	}
 }

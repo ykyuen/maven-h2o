@@ -36,6 +36,9 @@ CREATE TABLE message (
 	receipt_url varchar,
 	mic_value varchar,
 	original_message_id varchar,
+	primal_message_id varchar,-- The message_id of message which triggered "Resend as New Message"
+	has_resend_as_new varchar,
+	partnership_id varchar NOT NULL,
 	time_stamp timestamp NOT NULL,
 	status varchar NOT NULL,
 	status_desc varchar,
@@ -47,4 +50,10 @@ CREATE TABLE repository (
 	message_box varchar NOT NULL,
 	content BINARY NOT NULL, // HSQL Specified
 	PRIMARY KEY (message_id, message_box)
+);
+
+CREATE TABLE raw_repository (
+	message_id varchar NOT NULL,
+	content BINARY NOT NULL, // HSQL Specified
+	PRIMARY KEY (message_id)
 );

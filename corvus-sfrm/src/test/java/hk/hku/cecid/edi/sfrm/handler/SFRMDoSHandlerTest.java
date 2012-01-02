@@ -169,9 +169,9 @@ public class SFRMDoSHandlerTest extends TestCase {
 		testThread.start();
 		
 		try{ Thread.sleep(500); testThread.interrupt(); }catch(Exception ex){}
-		
-		// The testing thread has died, it should allow input0 enter again.
-		TestCase.assertEquals(true, doSHandler.enter(input0));
+		//Since the thread cannot be interrupt, when the thread is sleeping, so it still alive
+		//and cannot enter the barrier
+		TestCase.assertEquals(false, doSHandler.enter(input0));
 	}
 	*/
 	

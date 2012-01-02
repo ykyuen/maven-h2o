@@ -17,6 +17,9 @@ import hk.hku.cecid.piazza.commons.dao.DAOException;
  * 
  */
 public interface MessageStoreDAO extends DAO {
+	
+	public void storeMessage(final MessageDVO primalMsgDVO, final MessageDVO msgDVO, 
+			final RepositoryDVO repoDVO, final RawRepositoryDVO rawRepoDVO) throws DAOException;
 
     public void storeMessage(MessageDVO[] messageDVO,
             RepositoryDVO[] repositoryDVO) throws DAOException;

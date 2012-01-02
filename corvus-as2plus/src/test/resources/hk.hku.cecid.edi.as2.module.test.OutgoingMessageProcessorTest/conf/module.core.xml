@@ -1,4 +1,4 @@
-<module id="as2.core" name="Corvus AS2" version="1.0">
+<module id="as2.core" name="Corvus AS2 Plus" version="1.0">
 
 	<component id="logger" name="AS2 Core Logger">
 		<class>hk.hku.cecid.piazza.commons.util.ConsoleLogger</class>

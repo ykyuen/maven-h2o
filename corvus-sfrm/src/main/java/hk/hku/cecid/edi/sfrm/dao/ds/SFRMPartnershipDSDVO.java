@@ -5,18 +5,20 @@
 package hk.hku.cecid.edi.sfrm.dao.ds;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.FileInputStream;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.InputStreamReader;
 
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateFactory;
 import java.sql.Timestamp;
-import java.lang.ref.SoftReference;
 
+import hk.hku.cecid.edi.sfrm.spa.SFRMException;
 import hk.hku.cecid.edi.sfrm.spa.SFRMProperties;
-import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
 
 import hk.hku.cecid.edi.sfrm.dao.SFRMPartnershipDVO;
 
@@ -68,16 +70,6 @@ public class SFRMPartnershipDSDVO extends DataSourceDVO implements
 	 * The cached partnership endpoint; [4B]
 	 */
 	private String partnerEndpoint;
-	
-	/**
-	 * The cached reference verification or encryption certificates. [Unknown]
-	 */
-	private X509Certificate X509cert;  
-	
-	/**
-	 * The flag indicating whether the certificates is cached or not. [1B]   
-	 */
-	private boolean X509CacheFlag;
 	
 	/**
 	 * The cached retry max. [4B]
@@ -218,61 +210,12 @@ public class SFRMPartnershipDSDVO extends DataSourceDVO implements
 		super.setBoolean("isHostnameVerified", isHostnameVerified);
 	}
 
-	/**
-	 * [@GET, THREAD-SAFETY]
-	 * 
-	 * @return whether the partnership requires signing for outbound message.
-	 */
-	public boolean isOutboundSignRequested() {
-		return super.getBoolean("isOutboundSignRequested");
-	}
-
-	/**
-	 * [@SET, THREAD-SAFETY] set whether the partnership requires signing for outbound message.
-	 * 
-	 * @param isOutboundSignRequested true if requires signing, vice versa.
-	 */
-	public void setIsOutboundSignRequested(boolean isOutboundSignRequested) {
-		super.setBoolean("isOutboundSignRequested", isOutboundSignRequested);
-	}
-
-	public boolean isOutboundEncryptRequested() {
-		return super.getBoolean("isOutboundEncryptRequested");
-	}
-
-	public void setIsOutboundEncryptRequested(boolean isOutboundEncryptRequested) {
-		super.setBoolean("isOutboundEncryptRequested", isOutboundEncryptRequested);
-	}
-
-	public boolean isInboundSignEnforced() {
-		return super.getBoolean("isInboundSignEnforced");
-	}
-
-	public void setIsInboundSignEnforced(boolean isInboundSignEnforced) {
-		super.setBoolean("isInboundSignEnforced", isInboundSignEnforced);
-	}
-
-	public boolean isInboundEncryptEnforced() {
-		return super.getBoolean("isInboundEncryptEnforced");
-	}
-
-	public void setIsInboundEncryptEnforced(boolean isInboundEncryptEnforced) {
-		super.setBoolean("isInboundEncryptEnforced", isInboundEncryptEnforced);
-	}
-
 	public String getSignAlgorithm() {
 		return super.getString("signAlgorithm");
 	}
 
 	public void setSignAlgorithm(String signAlgorithm) {
 		super.setString("signAlgorithm", signAlgorithm);
-	}
-
-	/**
-	 * [@GET, NON-THREAD-SAFETY, CACHABLE] Get the verification X509 certificates.
-	 */
-	public X509Certificate getVerifyX509Certificate(){
-		return getX509Certificate(this.getPartnerCertFingerprint());
 	}
 
 	public String getEncryptAlgorithm() {
@@ -282,27 +225,6 @@ public class SFRMPartnershipDSDVO extends DataSourceDVO implements
 	public void setEncryptAlgorithm(String encryptAlgorithm) {
 		super.setString("encryptAlgorithm", encryptAlgorithm);
 	}
-	
-	/**
-	 * [@GET, NON-THREAD-SAFETY, CACHABLE] Get the encryption X509 certificates.
-	 */
-	public X509Certificate getEncryptX509Certificate(){		
-		return getX509Certificate(this.getPartnerCertFingerprint());	
-	}
-	
-	/**
-	 * @deprecated
-	 */
-//	public int getCompressionLevel(){
-//		return super.getInt("compressionLevel");
-//	}
-	
-	/**
-	 * @deprecated
-	 */
-//	public void setCompressionLevel(int compressionLevel){
-//		super.setInt("compressionLevel", compressionLevel);
-//	}
 	
 	/**
 	 * [@GET, THREAD-SAFETY] Get the maximum retry allowed for this partnership DVO.  
@@ -386,41 +308,70 @@ public class SFRMPartnershipDSDVO extends DataSourceDVO implements
 		this.put("modifiedTimestamp", modifiedTimestamp);
 	}
 
+	
 	/**
-	 * [@GET, NON-THREAD-SAFETY, CACHABLE] Get the X509 Verification / Encryption
+	 * Get X509 certificate from trusted certificate store specified in SFRM properties
+	 * 
+	 * @return X509 certificate
+	 * @throws SFRMException 
+	 */
+	public X509Certificate getVerifyX509Certificate() throws SFRMException{
+		return getX509Certificate(new File(SFRMProperties.getTrustedCertStore()
+				,this.getPartnerCertFingerprint()));
+	}
+	
+	/**
+	 * Get X509 certificate from trusted certificate store specified in SFRM properties
+	 * 
+	 * @return X509 certificate
+	 * @throws SFRMException 
+	 */
+	public X509Certificate getEncryptX509Certificate() throws SFRMException{
+		if(this.getPartnerCertFingerprint() != null){
+			return getX509Certificate(new File(SFRMProperties.getTrustedCertStore()
+					,this.getPartnerCertFingerprint()));
+		}
+		return null;
+	}
+	
+	/**
+	 * Get the X509 Verification / Encryption
 	 * certificates.
 	 * 
-	 * @param certFingerprint The fingerprint of the certificates. 			
-	 * @return the X509 certificates with <code>certFingerprint</code>
+	 * @param certFile The file with fingerprint as file name of the public certificate 			
+	 * @return X509 certificate 
 	 */
-	private X509Certificate getX509Certificate(String certFingerprint){
-		try{
+	private X509Certificate getX509Certificate(File certFile) throws SFRMException {
+		try {
 			X509Certificate cert;
-			// TODO: Multiple thread can see this value is null / stale data.
-			if (X509CacheFlag == false){
-				File certFile = new File(SFRMProperties.getTrustedCertStore()
-										,certFingerprint);
-				if (!certFile.exists())
-					throw new Exception("Missing certs with finger print:" + 
-										certFingerprint);
-				BufferedInputStream bis = new BufferedInputStream(
-					new FileInputStream(certFile));			
-				byte[] bs = IOHandler.readBytes(bis);							 			
-				InputStream certStream = new ByteArrayInputStream(bs);
-				cert = (X509Certificate) CertificateFactory
-					.getInstance("X.509").generateCertificate(certStream);
-				bis.close();
-				certStream.close();
-				this.X509cert 		= cert;
-				this.X509CacheFlag	= true;	// Atomic on write machine instruction
-				return cert;
-			}
-			return this.X509cert;
-		}catch(Exception e){
-			SFRMProcessor.core.log.error(
-				"Unable to load the certificates with fingerprint: "
-			   + certFingerprint);
-			return null;
+			
+			if (!certFile.exists())
+				throw new SFRMException("Missing certs with finger print:" + 
+						certFile);
+			
+			BufferedInputStream bis = new BufferedInputStream(
+				new FileInputStream(certFile));			
+			byte[] bs = IOHandler.readBytes(bis);							 			
+			InputStream certStream = new ByteArrayInputStream(bs);
+			cert = (X509Certificate) CertificateFactory
+				.getInstance("X.509")
+				.generateCertificate(certStream);
+			bis.close();
+			certStream.close();
+
+			return cert;
+			
+		} catch (Exception e){
+			throw new SFRMException("Unable to load the certificates with fingerprint: "
+				   + certFile, e);
 		}
 	}
+	
+	public String getEncryptX509CertificateBase64() throws FileNotFoundException, IOException{
+		File certFile = new File(SFRMProperties.getTrustedCertStore(), this.getPartnerCertFingerprint());
+		InputStreamReader certReader = new InputStreamReader(new FileInputStream(certFile));
+		String certContent = IOHandler.readString(certReader);
+		return certContent;
+	}
+	
 }

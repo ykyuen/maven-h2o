@@ -9,28 +9,44 @@
 
 package hk.hku.cecid.edi.sfrm.admin.listener;
 
+import hk.hku.cecid.piazza.commons.test.utils.FixtureStore;
 import junit.framework.TestCase;
 import java.lang.reflect.Method;
 import hk.hku.cecid.edi.sfrm.admin.listener.PartnershipPageletAdaptor;
-import hk.hku.cecid.piazza.commons.test.utils.FixtureStore;
-
 import java.util.Hashtable;
 import java.io.InputStream;
+import java.io.IOException;
+import java.io.FileInputStream;
+import java.io.File;
 
-public class PartnershipPageletAdaptorTest extends TestCase{
+public class PartnershipPageletAdaptorTest extends TestCase {
+	
+	protected ClassLoader FIXTURE_LOADER = FixtureStore.createFixtureLoader(
+			false, this.getClass());
+	protected File baseFile = new File(FixtureStore.getFixtureURL(
+			this.getClass()).getFile());
 	
 	private PartnershipPageletAdaptor adaptor = new PartnershipPageletAdaptor();
 	private InputStream validCertInStream = null;
 	private InputStream invalidCertInStream = null;
+	private File validCertFile = new File(FIXTURE_LOADER.getResource("validCert.crt").getFile());
+	private File invalidCertFile = new File(FIXTURE_LOADER.getResource("invalidCert.crt").getFile());
 	
 	public void setUp() throws Exception{
-		ClassLoader FIXTURE_LOADER = FixtureStore.createFixtureLoader(false, PartnershipPageletAdaptorTest.class);
-		validCertInStream = FIXTURE_LOADER.getResourceAsStream("validCert.crt");
-		invalidCertInStream = FIXTURE_LOADER.getResourceAsStream("invalidCert.crt");
+		System.out.println();
+		try{
+			validCertInStream = new FileInputStream(validCertFile);
+			invalidCertInStream = new FileInputStream(invalidCertFile);
+		}catch(IOException ioe){
+			System.out.println(ioe);
+			TestCase.fail();
+		}
 		System.out.println("---------" + this.getName() + " Start -------");
 	}
 	
 	public void tearDown() throws Exception{
+		validCertInStream.close();
+		invalidCertInStream.close();
 		System.out.println("---------" + this.getName() + " End   -------");
 	}
 	
@@ -39,7 +55,7 @@ public class PartnershipPageletAdaptorTest extends TestCase{
 		Method m = Class.forName("hk.hku.cecid.edi.sfrm.admin.listener.PartnershipPageletAdaptor").getDeclaredMethod("validatePartnership", new Class[] {Hashtable.class});
 		m.setAccessible(true);
 		//Build the valid partnership
-		Hashtable<String, Object> sample = new Hashtable<String, Object>();
+		Hashtable sample = new Hashtable();
 		sample.put("partnership_id", "sample_partnership");
 		sample.put("description", "This is the sample partnership");
 		sample.put("partner_endpoint", "http://localhost:8080");
@@ -63,7 +79,7 @@ public class PartnershipPageletAdaptorTest extends TestCase{
 		Method m = Class.forName("hk.hku.cecid.edi.sfrm.admin.listener.PartnershipPageletAdaptor").getDeclaredMethod("validatePartnership", new Class[] {Hashtable.class});
 		m.setAccessible(true);
 		//Build the valid partnership
-		Hashtable<String, Object> sample = new Hashtable<String, Object>();
+		Hashtable sample = new Hashtable();
 		//Invalid partnership ID with empty string
 		sample.put("partnership_id", "");
 		sample.put("description", "This is the sample partnership");
@@ -90,7 +106,7 @@ public class PartnershipPageletAdaptorTest extends TestCase{
 		Method m = Class.forName("hk.hku.cecid.edi.sfrm.admin.listener.PartnershipPageletAdaptor").getDeclaredMethod("validatePartnership", new Class[] {Hashtable.class});
 		m.setAccessible(true);
 		//Build the valid partnership
-		Hashtable<String, Object> sample = new Hashtable<String, Object>();
+		Hashtable sample = new Hashtable();
 		//Invalid partnership ID filled with space
 		sample.put("partnership_id", "      ");
 		sample.put("description", "This is the sample partnership");
@@ -118,7 +134,7 @@ public class PartnershipPageletAdaptorTest extends TestCase{
 		Method m = Class.forName("hk.hku.cecid.edi.sfrm.admin.listener.PartnershipPageletAdaptor").getDeclaredMethod("validatePartnership", new Class[] {Hashtable.class});
 		m.setAccessible(true);
 		//Build the valid partnership
-		Hashtable<String, Object> sample = new Hashtable<String, Object>();
+		Hashtable sample = new Hashtable();
 		sample.put("partnership_id", "dummy");
 		sample.put("description", "This is the sample partnership");
 		//Invalid endpoint with empty string
@@ -146,7 +162,7 @@ public class PartnershipPageletAdaptorTest extends TestCase{
 		Method m = Class.forName("hk.hku.cecid.edi.sfrm.admin.listener.PartnershipPageletAdaptor").getDeclaredMethod("validatePartnership", new Class[] {Hashtable.class});
 		m.setAccessible(true);
 		//Build the valid partnership
-		Hashtable<String, Object> sample = new Hashtable<String, Object>();
+		Hashtable sample = new Hashtable();
 		sample.put("partnership_id", "dummy");
 		sample.put("description", "This is the sample partnership");
 		//Invalid endpoint filled with space
@@ -174,7 +190,7 @@ public class PartnershipPageletAdaptorTest extends TestCase{
 		Method m = Class.forName("hk.hku.cecid.edi.sfrm.admin.listener.PartnershipPageletAdaptor").getDeclaredMethod("validatePartnership", new Class[] {Hashtable.class});
 		m.setAccessible(true);
 		//Build the valid partnership
-		Hashtable<String, Object> sample = new Hashtable<String, Object>();
+		Hashtable sample = new Hashtable();
 		sample.put("partnership_id", "dummy");
 		sample.put("description", "This is the sample partnership");
 		//Invalid endpoint with using ftp as protocol
@@ -202,7 +218,7 @@ public class PartnershipPageletAdaptorTest extends TestCase{
 		Method m = Class.forName("hk.hku.cecid.edi.sfrm.admin.listener.PartnershipPageletAdaptor").getDeclaredMethod("validatePartnership", new Class[] {Hashtable.class});
 		m.setAccessible(true);
 		//Build the valid partnership
-		Hashtable<String, Object> sample = new Hashtable<String, Object>();
+		Hashtable sample = new Hashtable();
 		sample.put("partnership_id", "dummy");
 		sample.put("description", "This is the sample partnership");
 		sample.put("partner_endpoint", "http://localhost:8080");
@@ -230,7 +246,7 @@ public class PartnershipPageletAdaptorTest extends TestCase{
 		Method m = Class.forName("hk.hku.cecid.edi.sfrm.admin.listener.PartnershipPageletAdaptor").getDeclaredMethod("validatePartnership", new Class[] {Hashtable.class});
 		m.setAccessible(true);
 		//Build the valid partnership
-		Hashtable<String, Object> sample = new Hashtable<String, Object>();
+		Hashtable sample = new Hashtable();
 		sample.put("partnership_id", "dummy");
 		sample.put("description", "This is the sample partnership");
 		sample.put("partner_endpoint", "http://localhost:8080");
@@ -258,7 +274,7 @@ public class PartnershipPageletAdaptorTest extends TestCase{
 		Method m = Class.forName("hk.hku.cecid.edi.sfrm.admin.listener.PartnershipPageletAdaptor").getDeclaredMethod("validatePartnership", new Class[] {Hashtable.class});
 		m.setAccessible(true);
 		//Build the valid partnership
-		Hashtable<String, Object> sample = new Hashtable<String, Object>();
+		Hashtable sample = new Hashtable();
 		sample.put("partnership_id", "dummy");
 		sample.put("description", "This is the sample partnership");
 		sample.put("partner_endpoint", "http://localhost:8080");
@@ -285,7 +301,7 @@ public class PartnershipPageletAdaptorTest extends TestCase{
 		Method m = Class.forName("hk.hku.cecid.edi.sfrm.admin.listener.PartnershipPageletAdaptor").getDeclaredMethod("validatePartnership", new Class[] {Hashtable.class});
 		m.setAccessible(true);
 		//Build the valid partnership
-		Hashtable<String, Object> sample = new Hashtable<String, Object>();
+		Hashtable sample = new Hashtable();
 		sample.put("partnership_id", "");
 		sample.put("description", "This is the sample partnership");
 		sample.put("partner_endpoint", "http://localhost:8080");
@@ -329,12 +345,12 @@ public class PartnershipPageletAdaptorTest extends TestCase{
 		sample.put("retry_max", "3");
 		sample.put("retry_interval", "60000");
 		sample.put("is_disabled", "false");
+		//Invalid partnership certificate
 		sample.put("partner_cert", validCertInStream);
 		Hashtable errors = (Hashtable) m.invoke(adaptor, new Object[] {sample});
 		TestCase.assertEquals("There didn't have error(s) for the invalid partnership" , 1, errors.size());
 		TestCase.assertNotNull("Partnership ID is invalid, but it didn't detected", errors.get("partnership_id"));
 		TestCase.assertEquals("Wrong partnership error message", "Partnership ID should contains the alphanumeric characters and @ _ + - only", (String)errors.get("partnership_id"));
 	}
-	
 }
 

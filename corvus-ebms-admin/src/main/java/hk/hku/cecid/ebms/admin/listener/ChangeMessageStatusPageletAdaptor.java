@@ -11,8 +11,7 @@ package hk.hku.cecid.ebms.admin.listener;
 
 import hk.hku.cecid.ebms.spa.EbmsProcessor;
 import hk.hku.cecid.ebms.spa.dao.MessageDVO;
-import hk.hku.cecid.ebms.spa.dao.MessageServerDAO;
-import hk.hku.cecid.piazza.commons.dao.DAOException;
+import hk.hku.cecid.ebms.spa.util.EbmsMessageStatusReverser;
 import hk.hku.cecid.piazza.commons.util.PropertyTree;
 import hk.hku.cecid.piazza.corvus.admin.listener.AdminPageletAdaptor;
 
@@ -33,50 +32,39 @@ public class ChangeMessageStatusPageletAdaptor extends AdminPageletAdaptor {
 
         try {
             String messageId = request.getParameter("message_id");
-            String messageBox = request.getParameter("message_box");
-            String status = request.getParameter("status");
-
-            MessageServerDAO msgServerDAO = 
-				(MessageServerDAO)EbmsProcessor.core.dao.createDAO(MessageServerDAO.class);
-            MessageDVO result = null;
-            try{
-            	result = msgServerDAO.resetMessage(messageId, messageBox, status);
-            }catch(DAOException daoException){
-            	result = null;
-            	 EbmsProcessor.core.log.debug(
-                         "Error occur when reseting message, record rollbacked",
-                         daoException);
-            }
             
-            if(result != null){
+            EbmsMessageStatusReverser reverser = new EbmsMessageStatusReverser();
+            MessageDVO messageDVO = reverser.updateToSend(messageId);
+
+            if (messageDVO != null) {
                 dom.setProperty("message[0]/message_id",
-                        checkNullAndReturnEmpty(result.getMessageId()));
+                        checkNullAndReturnEmpty(messageDVO.getMessageId()));
                 dom.setProperty("message[0]/message_box",
-                        checkNullAndReturnEmpty(result.getMessageBox()));
+                        checkNullAndReturnEmpty(messageDVO.getMessageBox()));
                 dom.setProperty("message[0]/ref_to_message_id",
-                                checkNullAndReturnEmpty(result
+                                checkNullAndReturnEmpty(messageDVO
                                         .getRefToMessageId()));
                 dom.setProperty("message[0]/message_type",
-                        checkNullAndReturnEmpty(result.getMessageType()));
+                        checkNullAndReturnEmpty(messageDVO.getMessageType()));
                 dom.setProperty("message[0]/cpa_id",
-                        checkNullAndReturnEmpty(result.getCpaId()));
+                        checkNullAndReturnEmpty(messageDVO.getCpaId()));
                 dom.setProperty("message[0]/service",
-                        checkNullAndReturnEmpty(result.getService()));
+                        checkNullAndReturnEmpty(messageDVO.getService()));
                 dom.setProperty("message[0]/action",
-                        checkNullAndReturnEmpty(result.getAction()));
+                        checkNullAndReturnEmpty(messageDVO.getAction()));
                 dom.setProperty("message[0]/conv_id",
-                        checkNullAndReturnEmpty(result.getConvId()));
-                dom.setProperty("message[0]/time_stamp", result
+                        checkNullAndReturnEmpty(messageDVO.getConvId()));
+                dom.setProperty("message[0]/time_stamp", messageDVO
                         .getTimeStamp().toString());
                 dom.setProperty("message[0]/status",
-                        checkNullAndReturnEmpty(result.getStatus()));
+                        checkNullAndReturnEmpty(messageDVO.getStatus()));
                 dom.setProperty("message[0]/status_description", String
-                        .valueOf(checkNullAndReturnEmpty(result
+                        .valueOf(checkNullAndReturnEmpty(messageDVO
                                 .getStatusDescription())));
                 dom.setProperty("message[0]/from_party_id",
-                        checkNullAndReturnEmpty(result.getFromPartyId()));
+                        checkNullAndReturnEmpty(messageDVO.getFromPartyId()));
                 dom.setProperty("message[0]/to_party_id",
-                        checkNullAndReturnEmpty(result.getToPartyId()));
+                        checkNullAndReturnEmpty(messageDVO.getToPartyId()));
 
             }
             
@@ -101,10 +89,6 @@ public class ChangeMessageStatusPageletAdaptor extends AdminPageletAdaptor {
         return dom.getSource();
     }
 
-    /**
-     * @param messageId
-     * @return
-     */
     private String checkNullAndReturnEmpty(String value) {
         if (value == null) {
             return new String("");

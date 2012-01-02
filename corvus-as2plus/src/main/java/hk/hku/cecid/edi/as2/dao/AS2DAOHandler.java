@@ -10,7 +10,6 @@
 package hk.hku.cecid.edi.as2.dao;
 
 import hk.hku.cecid.edi.as2.AS2Exception;
-import hk.hku.cecid.edi.as2.AS2PlusProcessor;
 import hk.hku.cecid.edi.as2.pkg.AS2Header;
 import hk.hku.cecid.edi.as2.pkg.AS2Message;
 import hk.hku.cecid.edi.as2.pkg.AS2MessageException;
@@ -42,6 +41,29 @@ public class AS2DAOHandler {
         this.principal = principal; 
     }
     
+    public RawRepositoryDAO createRawRepositoryDAO() throws DAOException {
+    	return (RawRepositoryDAO) daoFactory.createDAO(RawRepositoryDAO.class);
+    }
+    
+    public RawRepositoryDVO createRawRepositoryDVO(AS2Message message) throws AS2MessageException, DAOException {
+        RawRepositoryDAO dao = createRawRepositoryDAO();
+        RawRepositoryDVO dvo = (RawRepositoryDVO) dao.createDVO();
+        dvo.setMessageId(message.getMessageID());
+        dvo.setContent(message.toByteArray());
+        return dvo;
+    }
+    
+    public RawRepositoryDVO findRawRepositoryDVO(String messageId) throws AS2Exception, DAOException {
+    	RawRepositoryDAO dao = createRawRepositoryDAO();
+        RawRepositoryDVO dvo = (RawRepositoryDVO) dao.createDVO();
+        dvo.setMessageId(messageId);
+        
+        if (dao.retrieve(dvo)) {
+        	return dvo;
+        }
+        throw new AS2Exception("No raw repository found - Message Id " + messageId);
+    }
+    
     public RepositoryDAO createRepositoryDAO() throws DAOException  {
         return (RepositoryDAO)daoFactory.createDAO(RepositoryDAO.class);
     }
@@ -61,7 +83,7 @@ public class AS2DAOHandler {
     }
         
     public MessageDVO createMessageDVO(AS2Message message, boolean isIncoming) 
-            throws AS2MessageException, DAOException {
+            throws AS2MessageException, AS2Exception, DAOException {
         MessageDAO dao = createMessageDAO();
         MessageDVO daoData = (MessageDVO) dao.createDVO();
         daoData.setMessageId(message.getMessageID());
@@ -70,6 +92,14 @@ public class AS2DAOHandler {
         daoData.setAs2To(message.getToPartyID());
         daoData.setTimeStamp(new Date());
         daoData.setStatus(MessageDVO.STATUS_PENDING);
+
+        try {
+	        PartnershipDVO partnershipDVO = findPartnership(message, isIncoming);
+	        daoData.setPartnershipId(partnershipDVO.getPartnershipId());
+        } catch (Exception e) {
+        	// Ignore exception
+        	// because some invalid messages belongs to non-existing partnership 
+        }        
       
         if (message.isDispositionNotification()) {
             DispositionNotification dn = message.getDispositionNotification();
@@ -86,8 +116,19 @@ public class AS2DAOHandler {
         return daoData;
     }
     
+    public MessageDVO findMessageDVO(String messageId, String messageBox) throws AS2Exception, DAOException {
+    	MessageDAO dao = createMessageDAO();
+    	MessageDVO dvo = (MessageDVO) dao.createDVO();
+    	dvo.setMessageId(messageId);
+    	dvo.setMessageBox(messageBox);
+    	if (dao.retrieve(dvo)) {
+    		return dvo;
+    	}
+    	throw new AS2Exception("No message found - Message Id : " + messageId + ", Message Box : " + messageBox);
+    }
+    
     public PartnershipDAO createPartnershipDAO() throws DAOException  {
-        return (PartnershipDAO)AS2PlusProcessor.getInstance().getDAOFactory().createDAO(PartnershipDAO.class);
+        return (PartnershipDAO)daoFactory.createDAO(PartnershipDAO.class);
     }
     
     public PartnershipDVO findPartnership(AS2Message message, boolean isIncoming) 
@@ -108,6 +149,16 @@ public class AS2DAOHandler {
         catch (Exception e) {
             throw new AS2Exception("No partnership for message: " + message, e);
         }
+    }
+    
+    public PartnershipDVO findPartnership(String partnershipId) throws AS2Exception, DAOException {
+    	PartnershipDAO dao = createPartnershipDAO();
+        PartnershipDVO dvo = (PartnershipDVO) dao.createDVO();
+        dvo.setPartnershipId(partnershipId);
+        if (dao.retrieve(dvo)) {
+        	return dvo;
+        }
+        throw new AS2Exception("No partnership found - Partnership Id: " + partnershipId);
     }
     
     public PartnershipDVO findPartnership(String fromParty, String toParty) 

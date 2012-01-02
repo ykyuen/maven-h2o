@@ -24,13 +24,11 @@ public interface MessageServerDAO extends DAO {
     /*public void storeInboxMessage(final MessageDVO messageDVO,
             final InboxDVO inboxDVO) throws DAOException;*/
     
-    public void storeOutboxMessage(MessageDVO messageDVO,
-            RepositoryDVO repositoryDVO, OutboxDVO outboxDVO)
-            throws DAOException;
+    public void storeOutboxMessage(
+    		MessageDVO messageDVO,
+            RepositoryDVO repositoryDVO, 
+            OutboxDVO outboxDVO,
+            MessageDVO primalMsgDVO) throws DAOException;
 
     public void clearMessage(MessageDVO data) throws DAOException;
-
-    public MessageDVO resetMessage(final String messageId, 
-			final String messageBox,
-			final String status)throws DAOException;
 }

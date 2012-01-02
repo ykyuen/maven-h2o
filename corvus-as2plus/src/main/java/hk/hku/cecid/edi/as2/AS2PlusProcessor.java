@@ -16,7 +16,6 @@ import hk.hku.cecid.edi.as2.module.PayloadRepository;
 import hk.hku.cecid.piazza.commons.module.ModuleException;
 import hk.hku.cecid.piazza.commons.module.ModuleGroup;
 import hk.hku.cecid.piazza.commons.module.PluginProcessor;
-import hk.hku.cecid.piazza.commons.module.SystemModule;
 import hk.hku.cecid.piazza.commons.security.KeyStoreManager;
 import hk.hku.cecid.piazza.commons.spa.Plugin;
 import hk.hku.cecid.piazza.commons.spa.PluginException;

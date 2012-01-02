@@ -23,7 +23,7 @@ import hk.hku.cecid.edi.sfrm.pkg.SFRMMessageException;
 
 import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
 
-import hk.hku.cecid.piazza.commons.io.NIOHandler;
+import hk.hku.cecid.piazza.commons.io.IOHandler;
 import hk.hku.cecid.piazza.commons.servlet.RequestListenerException;
 import hk.hku.cecid.piazza.commons.servlet.http.HttpRequestAdaptor;
 import hk.hku.cecid.piazza.commons.security.SMimeException;
@@ -60,7 +60,7 @@ public abstract class SFRMRequestAdaptor extends HttpRequestAdaptor {
             InternetHeaders requestHeaders = headers.getInternetHeaders();
             InputStream requestStream = request.getInputStream();
             SFRMMessage requestMessage = new SFRMMessage(requestHeaders, requestStream);
-            
+                        
             if (requestMessage.getPartnershipId() == null){
             	// TODO: Do we need to do more validation to prevent expensive rollback?
                 response.sendError(HttpURLConnection.HTTP_BAD_REQUEST, "Invalid SFRM Message");
@@ -78,13 +78,16 @@ public abstract class SFRMRequestAdaptor extends HttpRequestAdaptor {
             
             if (responseMessage == null) {
                 return null;
-            }           
+            }
+            
             InternetHeaders responseHeaders = responseMessage.getHeaders();
+            
             headers.putInternetHeaders(responseHeaders);
             
             InputStream contentStream= responseMessage.getContentStream();
             OutputStream responseStream= response.getOutputStream();
-            NIOHandler.pipe(contentStream, responseStream);           
+            IOHandler.pipe(contentStream, responseStream);
+            
             return null;
         }
         catch (Exception e) {
@@ -117,7 +120,7 @@ public abstract class SFRMRequestAdaptor extends HttpRequestAdaptor {
     		return null; // No Exception or unknown exception type.    	
     	// Get the actual exception.
     	Throwable actualCause = cause.getCause();
-    	SFRMProcessor.core.log.error("Fail to receive: ", cause); 
+    	SFRMProcessor.getInstance().getLogger().error("Fail to receive: ", cause); 
     	
     	// -----------------------------------------------------------
     	// Error handling

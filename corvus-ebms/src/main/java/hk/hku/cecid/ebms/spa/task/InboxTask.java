@@ -9,11 +9,13 @@
 
 package hk.hku.cecid.ebms.spa.task;
 
+import hk.hku.cecid.ebms.pkg.EbxmlMessage;
 import hk.hku.cecid.ebms.spa.EbmsProcessor;
 import hk.hku.cecid.ebms.spa.dao.InboxDAO;
 import hk.hku.cecid.ebms.spa.dao.InboxDVO;
 import hk.hku.cecid.ebms.spa.dao.MessageDAO;
 import hk.hku.cecid.ebms.spa.dao.MessageDVO;
+import hk.hku.cecid.ebms.spa.handler.EbxmlMessageDAOConvertor;
 import hk.hku.cecid.ebms.spa.handler.MessageClassifier;
 import hk.hku.cecid.piazza.commons.dao.DAOException;
 import hk.hku.cecid.piazza.commons.module.ActiveTask;
@@ -53,6 +55,8 @@ public class InboxTask implements ActiveTask {
             inboxDVO.setMessageId(message.getMessageId());
             inboxDVO.setOrderNo(nextOrderNo);
             inboxDAO.create(inboxDVO);
+			
+			fireEvent();
 
             EbmsProcessor.core.log.info("Ebxml Message ("
                     + message.getMessageId()
@@ -63,6 +67,32 @@ public class InboxTask implements ActiveTask {
             throw new DeliveryException("Error in storing message to inbox", e);
         }
     }
+	
+	private void fireEvent() throws MessageValidationException {
+		EbmsEventModule eventModule = (EbmsEventModule) EbmsProcessor
+				.getModuleGroup().getModule(EbmsEventModule.MODULE_ID);
+		if (eventModule.hasListeners()) {
+			EbxmlMessage ebxmlMessage = EbxmlMessageDAOConvertor
+					.getEbxmlMessage(message.getMessageId(),
+							MessageClassifier.MESSAGE_BOX_INBOX);
+
+			// Get message type
+			MessageClassifier messageClassifier = new MessageClassifier(
+					ebxmlMessage);
+			String messageType = messageClassifier.getMessageType();
+
+			if (messageType
+					.equalsIgnoreCase(MessageClassifier.MESSAGE_TYPE_ERROR)) {
+				eventModule.fireErrorOccurred(ebxmlMessage);
+			} else if (messageType
+					.equalsIgnoreCase(MessageClassifier.MESSAGE_TYPE_ACKNOWLEDGEMENT)) {
+				eventModule.fireResponseReceived(ebxmlMessage);
+			} else if (messageType
+					.equalsIgnoreCase(MessageClassifier.MESSAGE_TYPE_ORDER)) {
+				eventModule.fireMessageReceived(ebxmlMessage);
+			}
+		}
+	}
 
     /*
      * (non-Javadoc)

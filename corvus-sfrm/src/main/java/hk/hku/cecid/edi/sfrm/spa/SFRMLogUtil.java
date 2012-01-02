@@ -24,7 +24,7 @@ public class SFRMLogUtil {
 	 * @return
 	 */
 	public static void log(String caller, String action, String messageId, int segmentNumber){			
-		SFRMProcessor.core.log.info(
+		SFRMProcessor.getInstance().getLogger().info(
 			new StringBuffer(DEFAULT_BUFFER_LENGTH + messageId.length())
 			.append(caller)
 			.append(action)
@@ -42,7 +42,7 @@ public class SFRMLogUtil {
 	 * @return
 	 */
 	public static void log(String caller, String action, int segmentNumber){
-		SFRMProcessor.core.log.info(
+		SFRMProcessor.getInstance().getLogger().info(
 			new StringBuffer(DEFAULT_BUFFER_LENGTH)
 			.append(caller)
 			.append(action)
@@ -54,7 +54,7 @@ public class SFRMLogUtil {
 	 *
 	 */
 	public static void debug(String caller, String action, String segmentType){
-		SFRMProcessor.core.log.debug(
+		SFRMProcessor.getInstance().getLogger().debug(
 			new StringBuffer(DEFAULT_BUFFER_LENGTH)
 			.append(caller)
 			.append(action)

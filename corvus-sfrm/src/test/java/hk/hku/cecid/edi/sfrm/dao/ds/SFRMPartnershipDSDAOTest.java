@@ -1,4 +1,5 @@
 package hk.hku.cecid.edi.sfrm.dao.ds;
+
 import org.junit.Assert;
 import org.junit.Test;
 import hk.hku.cecid.piazza.commons.test.DAOTest;
@@ -6,7 +7,9 @@ import hk.hku.cecid.piazza.commons.dao.DAOException;
 import hk.hku.cecid.edi.sfrm.dao.SFRMPartnershipDVO;
 import java.util.List;
 import java.util.Calendar;
+
 public class SFRMPartnershipDSDAOTest extends DAOTest<SFRMPartnershipDSDAO>{
+
 	@Override
 	public String getTableName(){
 		return "partnership";
@@ -44,7 +47,6 @@ public class SFRMPartnershipDSDAOTest extends DAOTest<SFRMPartnershipDSDAO>{
 		dvo = (SFRMPartnershipDSDVO)dao.findPartnershipBySeq(-1);
 		Assert.assertNull("Partnership with seq id -1 doesn;t exist, but it can find one", dvo);
 	}
-	
 	
 	@Test
 	public void testFindPartnershipBySeqObj() throws DAOException{
@@ -196,10 +198,8 @@ public class SFRMPartnershipDSDAOTest extends DAOTest<SFRMPartnershipDSDAO>{
 		dvo.setSignAlgorithm("sha1");
 		dvo.setIsDisabled(false);
 		dvo.setIsHostnameVerified(false);
-		dvo.setIsInboundEncryptEnforced(false);
-		dvo.setIsInboundSignEnforced(false);
-		dvo.setIsOutboundEncryptRequested(false);
-		dvo.setIsOutboundSignRequested(false);
+		dvo.setSignAlgorithm(null);
+		dvo.setEncryptAlgorithm(null);
 		dvo.setPartnerEndPoint("http://localhost");
 		dvo.setRetryInterval(6000);
 		dvo.setRetryMax(3);
@@ -209,8 +209,8 @@ public class SFRMPartnershipDSDAOTest extends DAOTest<SFRMPartnershipDSDAO>{
 		}catch(DAOException daoe){
 			Assert.fail("Failure when inserting a new partnership: " + daoe);
 		}
+
 		//Assert if it can retrieve the inserted partnership
-		SFRMPartnershipDVO new_dvo = dao.findPartnershipById("dummy_id");
 		Assert.assertEquals("Partnership ID didn't matched", "dummy_id", dvo.getPartnershipId());
 	}
 	
@@ -223,16 +223,11 @@ public class SFRMPartnershipDSDAOTest extends DAOTest<SFRMPartnershipDSDAO>{
 		SFRMPartnershipDSDAO dao = super.getTestingTarget();
 		SFRMPartnershipDVO dvo = (SFRMPartnershipDVO) dao.createDVO();
 		dvo.setPartnershipSeq(1);
-		//dvo.setPartnershipId("dummy_id");
 		dvo.setDescription("This is the dummy partnership");
 		dvo.setEncryptAlgorithm("3des");
 		dvo.setSignAlgorithm("sha1");
 		dvo.setIsDisabled(false);
 		dvo.setIsHostnameVerified(false);
-		dvo.setIsInboundEncryptEnforced(false);
-		dvo.setIsInboundSignEnforced(false);
-		dvo.setIsOutboundEncryptRequested(false);
-		dvo.setIsOutboundSignRequested(false);
 		dvo.setPartnerEndPoint("http://localhost");
 		dvo.setRetryInterval(6000);
 		dvo.setRetryMax(3);
@@ -313,10 +308,6 @@ public class SFRMPartnershipDSDAOTest extends DAOTest<SFRMPartnershipDSDAO>{
 		Assert.assertEquals("Orginial Partner Endpoint didn't matched", "test1", dvo.getOrgPartnerEndpoint());
 		Assert.assertEquals("Certificate Finger Print didn't matched", "0A51EE7101B535ABC9F39414A93C76E7DC768C7B", dvo.getPartnerCertFingerprint());
 		Assert.assertEquals("Is hostname verified didn't matched", false, dvo.isHostnameVerified());
-		Assert.assertEquals("Is Outbound sign request didn't matched", false, dvo.isOutboundSignRequested());
-		Assert.assertEquals("Is Outbound encrypt sign request didn't matched", false, dvo.isOutboundEncryptRequested());
-		Assert.assertEquals("Is Inbound sign enforced didn't matched", false, dvo.isInboundSignEnforced());
-		Assert.assertEquals("Is Inbound encrypt enforced didn't matched", false, dvo.isInboundEncryptEnforced());
 		Assert.assertEquals("Sign Algorithm didn't matched", "sha1", dvo.getSignAlgorithm());
 		Assert.assertEquals("Encrypt Algorithm didn't matched", "3des", dvo.getEncryptAlgorithm());
 		Assert.assertEquals("Retry Max didn't matched", 3, dvo.getRetryMax());

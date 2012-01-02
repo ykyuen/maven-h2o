@@ -143,6 +143,27 @@ public interface MessageDVO extends DVO {
     public void setRefToMessageId(String refToMessageId);
     
     /**
+     * Set the primalMessageID which represent the message triggered "Resend as New"
+     * @param primalMessageId
+     */
+    public void setPrimalMessageId(String primalMessageId);
+    
+    /**
+     * @return String primalMessageId refer to the message that triggered "Resend as New"
+     */
+    public String getPrimalMessageId();
+    
+    /**
+     * @param hasResendAsNew Set to "true" if message has triggered "Resend as New", "false" if otherwise
+     */
+    public void setHasResendAsNew(String hasResendAsNew);
+    
+    /**
+     * @return "true" if message has triggered "Resend as New", "false" if otherwise.
+     */
+    public String getHasResendAsNew();
+    
+    /**
      * @return Return whether the response EbMS message should be included in same SOAP connection. 
      */
     public String getSyncReply();
@@ -256,4 +277,8 @@ public interface MessageDVO extends DVO {
     public String getStatusDescription();
     
     public void setStatusDescription(String statusDescription);
+    
+    public void setPartnershipId(String partnershipId);
+    
+    public String getPartnershipId();
 }

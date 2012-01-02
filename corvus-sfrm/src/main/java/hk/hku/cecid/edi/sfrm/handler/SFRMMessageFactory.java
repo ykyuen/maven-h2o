@@ -1,14 +1,22 @@
 package hk.hku.cecid.edi.sfrm.handler;
 
 import java.io.File;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
 
+import hk.hku.cecid.edi.sfrm.activation.EmptyDataSource;
+import hk.hku.cecid.edi.sfrm.activation.FileRegionDataSource;
+import hk.hku.cecid.edi.sfrm.dao.SFRMMessageDVO;
+import hk.hku.cecid.edi.sfrm.dao.SFRMPartnershipDVO;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMMessage;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMConstant;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMMessageException;
+import hk.hku.cecid.edi.sfrm.spa.SFRMException;
+import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
 
 import hk.hku.cecid.piazza.commons.module.Component;
-import hk.hku.cecid.piazza.commons.activation.EmptyDataSource;
-import hk.hku.cecid.piazza.commons.activation.FileRegionDataSource;
+import hk.hku.cecid.piazza.commons.security.KeyStoreManager;
+
 
 /**
  * It is the [FACTORY] of the SFRM Message.<br><br>
@@ -100,7 +108,8 @@ public class SFRMMessageFactory extends Component {
 			String 	messageId,
 			String 	partnershipId,
 			int  	totalSegment,
-			long	totalSize) throws SFRMMessageException
+			long	totalSize,
+			String filename) throws SFRMMessageException
 	{
 		SFRMMessage ret = new SFRMMessage();
 		this.setupMessage(
@@ -115,10 +124,11 @@ public class SFRMMessageFactory extends Component {
 		if (totalSegment >= 0)
 			ret.setTotalSegment(totalSegment);
 		if (totalSize >= 0)
-			ret.setTotalSize(totalSize);			
+			ret.setTotalSize(totalSize);
+		ret.setFilename(filename);		
 		return ret;
 	}
-	
+		
 	/**
 	 * 
 	 * @param messageId
@@ -167,60 +177,35 @@ public class SFRMMessageFactory extends Component {
 		return ret;
 	}
 	
-	/**
-	 * 
-	 * @param messageId
-	 * @param partnershipId
-	 * @param segmentNo
-	 * @param isLastReceipt
-	 * @return
-	 * @throws SFRMMessageException
-	 */
-	public SFRMMessage
-	createReceiptRequest(
-			String 	messageId,
-			String 	partnershipId,
-			int  	segmentNo,
-			boolean	isLastReceipt) throws SFRMMessageException
-	{
-		SFRMMessage ret = new SFRMMessage();
-		this.setupMessage(
-			ret, 
-			messageId, 
-			partnershipId, 
-			SFRMConstant.MSGT_RECEIPT,
-			null, 
-			segmentNo, 
-			null,
-			null);
-		ret.setIsLastReceipt(isLastReceipt);
-		return ret;
-	}
+	public SFRMMessage createAcknowledgement(SFRMMessageDVO	mDVO, SFRMPartnershipDVO pDVO, String segType, String ackContent) 
+		throws SFRMException, NoSuchAlgorithmException, UnrecoverableKeyException, SFRMMessageException {
 	
-	/**
-	 * 
-	 * @param messageId
-	 * @param partnershipId
-	 * @param segmentNo
-	 * @return
-	 * @throws SFRMMessageException
-	 */
-	public SFRMMessage
-	createRecoveryRequest(
-			String 	messageId,
-			String 	partnershipId,
-			int  	segmentNo) throws SFRMMessageException
-	{
-		SFRMMessage ret = new SFRMMessage();
-		this.setupMessage(
-			ret, 
-			messageId, 
-			partnershipId, 
-			SFRMConstant.MSGT_RECOVERY,
-			null, 
-			segmentNo, 
-			null,
-			null);
-		return ret;
-	} 
+		// Create return message.
+		SFRMMessage msg = new SFRMMessage();		
+		// Construct the message header. Fill in general information
+		msg.setMessageID	(mDVO.getMessageId());
+		msg.setPartnershipId(mDVO.getPartnershipId());		
+		msg.setSegmentType	(segType);
+		msg.setSegmentNo(0);
+		msg.setContent(ackContent, SFRMConstant.XML_CONTENT_TYPE);		
+		msg.setMicValue(msg.digest());
+		
+		// No need to sign and encrypt, return immediately.
+		if (pDVO.getSignAlgorithm() == null && pDVO.getEncryptAlgorithm() == null)
+			return msg;
+					
+		// Setup up signing using MD5 or SHA1		
+		if (pDVO.getSignAlgorithm() != null){
+			KeyStoreManager keyman = SFRMProcessor.getInstance().getKeyStoreManager();
+			msg.sign(keyman.getX509Certificate(), keyman.getPrivateKey(), pDVO.getSignAlgorithm());
+		}
+		
+		// Setup up encrypting using RC2, DES
+
+		if (pDVO.getEncryptAlgorithm() != null) { 
+			msg.encrypt(pDVO.getEncryptX509Certificate(), pDVO.getEncryptAlgorithm());
+		}
+						
+		return msg;
+	}	
 }

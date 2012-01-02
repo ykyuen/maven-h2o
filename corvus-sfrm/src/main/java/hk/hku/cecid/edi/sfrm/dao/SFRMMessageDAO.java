@@ -117,4 +117,14 @@ public interface SFRMMessageDAO extends DAO {
      * @throws DAOException		if any kind of errors 
      */
     public List findMessagesByTime(int time_period, SFRMMessageDVO data, int numberOfMessage, int offset) throws DAOException;
+    
+    /**
+     * Find the message that is ready for requesting the acknowledgement
+     * @param numberOfMessage	Number of message show in the page
+     * @param offset			Offset of the data in the list of the search result
+     * @return					List of SFRMMessageDVO that is determined for ready to request for acknowledgement
+     * @throws DAOException		if any kind of errors
+     * @since 2.0.0
+     */
+    public List findMessageForAcknowledgement(int numberOfMessage, int offset) throws DAOException;
 }

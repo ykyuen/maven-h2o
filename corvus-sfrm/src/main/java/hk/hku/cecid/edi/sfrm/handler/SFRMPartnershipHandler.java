@@ -5,13 +5,13 @@
 package hk.hku.cecid.edi.sfrm.handler;
 
 import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
+import hk.hku.cecid.edi.sfrm.dao.CacheException;
 import hk.hku.cecid.edi.sfrm.dao.SFRMPartnershipDVO;
 import hk.hku.cecid.edi.sfrm.dao.SFRMPartnershipDAO;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMMessage;
 
 import hk.hku.cecid.piazza.commons.dao.DAO;
 import hk.hku.cecid.piazza.commons.dao.DAOException;
-import hk.hku.cecid.piazza.commons.dao.CacheException;
 import hk.hku.cecid.piazza.commons.dao.DVO;
 
 /**
@@ -34,7 +34,7 @@ public class SFRMPartnershipHandler extends DSHandler{
 		// TODO: Not thread-safety, may lead to partial constructed issue. 
 		if (this.dao == null){
 			this.dao = (SFRMPartnershipDAO) 
-				SFRMProcessor.core.dao.createDAO(SFRMPartnershipDAO.class);
+				SFRMProcessor.getInstance().getDAOFactory().createDAO(SFRMPartnershipDAO.class);
 			return this.dao;
 		}
 		return this.dao;

@@ -24,10 +24,12 @@ public class SFRMInboundListener extends SFRMRequestAdaptor {
             throws RequestListenerException {
         try {
         	SFRMMessage requestMessage = request.getMessage();        
+        	SFRMProcessor.getInstance().getLogger().debug("Request Type: " + requestMessage.getSegmentType());
         	
-           	SFRMMessage responseMessage = SFRMProcessor           	           	
+           	SFRMMessage responseMessage = SFRMProcessor.getInstance()          	           	
 				.getIncomingMessageHandler().processIncomingMessage(
 					requestMessage, null);
+           	
 			response.setMessage(responseMessage);
         }
         catch (Exception e) {

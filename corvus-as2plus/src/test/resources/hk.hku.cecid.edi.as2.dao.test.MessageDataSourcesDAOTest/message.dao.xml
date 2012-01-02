@@ -32,6 +32,7 @@
 		<parameter type="filter" name="messages_history_filter_from_party_id" value="as2_from like ?" />
 		<parameter type="filter" name="messages_history_filter_to_party_id" value="as2_to like ?" />
 		<parameter type="filter" name="messages_history_filter_status" value="status like ?" />
+		<parameter type="filter" name="messages_history_filter_primal_message_id" value="primal_message_id like ?" />
 
         <parameter type="sql" name="recover_pr_msg" value="update message set status='DF', status_desc='Shutdown while processing' where status='PR'" />
 	</dao>

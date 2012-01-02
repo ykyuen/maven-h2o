@@ -1,272 +1,50 @@
+<?xml version="1.0"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-
-	<!-- Parent Details -->
 	<parent>
 		<groupId>hk.hku.cecid</groupId>
 		<artifactId>h2o</artifactId>
 		<version>1.0</version>
 	</parent>
-	
-	<!-- Module Details -->
 	<artifactId>corvus-as2plus</artifactId>
-	<packaging>jar</packaging>
-	<version>1.0</version>
-	<name>corvus-as2plus</name>
-	<description>corvus-as2plus in maven</description>
-	
-	<!-- corvus-as2plus Properties -->
-	<properties>
-		<local_installer.path>${project.parent.basedir}/target/local_installer</local_installer.path>
-		<embedded_h2o.path>${project.parent.basedir}/target/embedded_h2o</embedded_h2o.path>
-		<h2o_installer.path>${project.parent.basedir}/target/h2o_installer</h2o_installer.path>
-	</properties>
-	
-	<!-- Build Configuration -->
+	<name>Corvus AS2Plus</name>
 	<build>
-	    <plugins>
-	    	<plugin>
+		<plugins>
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
+				<artifactId>maven-assembly-plugin</artifactId>
 				<executions>
 					<execution>
-					<id>source</id>
-					<phase>package</phase>
-					<goals>
-						<goal>jar</goal>
-					</goals>
-					</execution>
-				</executions>	
-			</plugin>
-			<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-surefire-plugin</artifactId>
-					<configuration>
-						<!-- For running RepositoryDataSourceDAOTest.java JUnit test -->
-						<argLine>-Xms512m -Xmx512m</argLine>
-					</configuration>
-				</plugin>
-			<plugin>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>install</id>
-						<phase>install</phase>
-						<configuration>
-							<tasks>
-								<!-- add the ant tasks from ant-contrib -->
-								<taskdef resource="net/sf/antcontrib/antcontrib.properties" />
-								
-								<!-- Rename jar to spa -->
-								<copy file="target/${project.name}-${project.version}.jar" toFile="target/${project.name}-${project.version}.spa" />
-								
-								<if>
-									<equals arg1="${as2plus}" arg2="true" />
-									<then>
-										<!-- ***************************** -->
-										<!--    For maven jetty plugin     -->
-										<!-- ***************************** -->
-										<if>
-											<equals arg1="${build.local_installer}" arg2="true" />
-											<then>
-												<!-- Remove the hk.hku.cecid.edi.as2plus folder -->
-												<delete dir="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus"/>
-												
-												<!-- Copy the plugin to h2o plugins folder for corvus jetty:run -->
-												<copy todir="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus">
-													<fileset dir="target/classes/spa" />
-												</copy>
-												
-												<!-- Replace plugin.xml -->
-												<replace file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/plugin.xml" token="@version@" value="${project.version}" />
-												<replace file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/plugin.xml" token="@jar@" value="${project.name}-${project.version}.jar" />
-												
-												<!-- Replace as2.log.properties.xml -->
-												<replace
-													file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.log.properties.xml"
-													token="@program.dir@"
-													value="${local_installer.path}"
-												/>
-												<replace
-													file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.log.properties.xml"
-													token="\"
-													value="/"
-												/>
-												
-												<!-- Replace as2.module.core.xml -->
-												<replace
-													file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@jdbc.driver@"
-													value="org.hsqldb.jdbcDriver"
-												/>
-												<replace
-													file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@jdbc.url@"
-													value="jdbc:hsqldb:file:${local_installer.path}/hsqldb/data/as2plus"
-												/>
-												<replace
-													file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@username@"
-													value="corvus"
-												/>
-												<replace
-													file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@password@"
-													value="corvus"
-												/>
-												<replace
-													file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@validation.query@"
-													value="select 1 from INFORMATION_SCHEMA.SYSTEM_USERS"
-												/>
-												<replace
-													file="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@dao.file@"
-													value="hk/hku/cecid/edi/as2/conf/as2.hsql.dao.xml"
-												/>
-												
-												<!-- Copy the jar(no token replacement inside) to the plugin folder -->
-												<copy file="target/${project.name}-${project.version}.jar" todir="${local_installer.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus" />
-											</then>
-										</if>
-										
-										<!-- ***************************** -->
-										<!-- For building the embedded h2o -->
-										<!-- ***************************** -->
-										<if>
-											<equals arg1="${build.embedded_h2o}" arg2="true" />
-											<then>
-												<!-- Copy the plugin to embedded h2o plugins folder -->
-												<copy todir="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus">
-													<fileset dir="target/classes/spa" />
-												</copy>
-												
-												<!-- Replace plugin.xml -->
-												<replace file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/plugin.xml" token="@version@" value="${project.version}" />
-												<replace file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/plugin.xml" token="@jar@" value="${project.name}-${project.version}.jar" />
-												
-												<!-- Replace as2.log.properties.xml -->
-												<replace
-													file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.log.properties.xml"
-													token="@program.dir@"
-													value="@ProgramDir@"
-												/>
-												
-												<!-- Replace as2.module.core.xml -->
-												<replace
-													file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@jdbc.driver@"
-													value="org.hsqldb.jdbcDriver"
-												/>
-												<replace
-													file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@jdbc.url@"
-													value="jdbc:hsqldb:file:@ProgramDir@/hsqldb/data/as2plus"
-												/>
-												<replace
-													file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@username@"
-													value="corvus"
-												/>
-												<replace
-													file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@password@"
-													value="corvus"
-												/>
-												<replace
-													file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@validation.query@"
-													value="select 1 from INFORMATION_SCHEMA.SYSTEM_USERS"
-												/>
-												<replace
-													file="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-													token="@dao.file@"
-													value="hk/hku/cecid/edi/as2/conf/as2.hsql.dao.xml"
-												/>
-												
-												<!-- Copy the jar(no token replacement inside) to the plugin folder -->
-												<copy file="target/${project.name}-${project.version}.jar" todir="${embedded_h2o.path}/hermes2/plugins/hk.hku.cecid.edi.as2plus" />
-											</then>
-										</if>
-									</then>
-								</if>
-								
-								<!-- ****************************** -->
-								<!-- For building the h2o installer -->
-								<!-- ****************************** -->
-								<if>
-									<equals arg1="${build.h2o_installer}" arg2="true" />
-									<then>
-										<!-- Copy the plugin to h2o installer plugins folder -->
-										<copy todir="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus">
-											<fileset dir="target/classes/spa" />
-										</copy>
-										
-										<!-- Replace plugin.xml -->
-										<replace file="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus/plugin.xml" token="@version@" value="${project.version}" />
-										<replace file="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus/plugin.xml" token="@jar@" value="${project.name}-${project.version}.jar" />
-										
-										<!-- Replace as2.log.properties.xml -->
-										<replace
-											file="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.log.properties.xml"
-											token="@program.dir@"
-											value="@convert@"
-										/>
-										
-										<!-- Replace as2.module.core.xml -->
-										<replace
-											file="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-											token="@jdbc.driver@"
-											value="@as2DriverClass@"
-										/>
-										<replace
-											file="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-											token="@jdbc.url@"
-											value="@as2ConnStr@"
-										/>
-										<replace
-											file="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-											token="@username@"
-											value="@as2user@"
-										/>
-										<replace
-											file="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-											token="@password@"
-											value="@as2pw@"
-										/>
-										<replace
-											file="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-											token="@validation.query@"
-											value="@as2ValidationQuery@"
-										/>
-										<replace
-											file="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus/conf/hk/hku/cecid/edi/as2/conf/as2.module.core.xml"
-											token="@dao.file@"
-											value="@as2DAOFile@"
-										/>
-										
-										<!-- Copy the jar(no token replacement inside) to the plugin folder -->
-										<copy file="target/${project.name}-${project.version}.jar" todir="${h2o_installer.path}/plugins/hk.hku.cecid.edi.as2plus" />
-									</then>
-								</if>
-							</tasks>
-						</configuration>
-						<goals>
-							<goal>run</goal>
-						</goals>
+						<id>spa-zip</id>
+						<phase>package</phase>
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>					
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>spa-copy</id>
+						<phase>package</phase>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- For running RepositoryDataSourceDAOTest.java JUnit test, see message content more than 50MB  -->
+					<argLine>-Xmx256m</argLine>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
-	
-	<!-- Project Dependencies -->
 	<dependencies>
-		<!-- Modules dependencies -->
 		<dependency>
-			<groupId>hk.hku.cecid</groupId>
+			<groupId>${project.groupId}</groupId>
 			<artifactId>piazza-commons</artifactId>
-			<version>1.0</version>
+			<scope>provided</scope>			
 		</dependency>
 	</dependencies>
 </project>

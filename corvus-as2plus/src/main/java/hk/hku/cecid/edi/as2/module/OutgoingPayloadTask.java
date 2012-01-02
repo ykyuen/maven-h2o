@@ -77,8 +77,8 @@ public class OutgoingPayloadTask implements ActiveTask {
         	OutgoingMessageProcessor outProcessor = AS2PlusProcessor.getInstance().getOutgoingMessageProcessor();
         	AS2Message as2Msg =
     		outProcessor.storeOutgoingMessage(
-    				msgId,as2From, as2To, payload.getContentType(),
-    				partnership, cacheSource);
+    				msgId, payload.getContentType(),
+    				partnership, cacheSource, null);
     	
         	if(as2Msg == null){
         		throw new NullPointerException("AS2 Message ["+payload.getMessageID()+"] is null when loading to database." +

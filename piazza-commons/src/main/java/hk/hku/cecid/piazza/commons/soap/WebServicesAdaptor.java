@@ -20,6 +20,7 @@ import java.util.Iterator;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.namespace.QName;
 import javax.xml.soap.Name;
 import javax.xml.soap.SOAPBody;
 import javax.xml.soap.SOAPBodyElement;
@@ -307,5 +308,29 @@ public abstract class WebServicesAdaptor extends SOAPHttpAdaptor {
             element.addAttribute(elementType, xsdType);
             element.addTextNode(value);
             return element;
+    }
+    
+    protected boolean isElement(SOAPElement element, String local, String namespace) {
+    	return new QName(namespace, local).equals(element.getElementQName());
+    }
+    
+    protected SOAPElement createElement(String local, String namespace) throws SOAPException {
+    	return super.soapFactory.createElement(soapFactory.createName(local, "", namespace));
+    }
+    
+    protected SOAPElement createElement(String local, String namespace, String value) throws SOAPException {
+        SOAPElement element = createElement(local, namespace);
+        element.setValue(value);
+        return element;
+    }
+    
+    protected SOAPElement[] getChildElementArray(SOAPElement element) {
+    	ArrayList<SOAPElement> arrayList = new ArrayList<SOAPElement>();
+    	Iterator<SOAPElement> iter1 = element.getChildElements();
+		while (iter1.hasNext()) 
+			arrayList.add(iter1.next());
+
+		SOAPElement[] childArray = (SOAPElement[])arrayList.toArray(new SOAPElement[]{});
+		return childArray;
     }
 }

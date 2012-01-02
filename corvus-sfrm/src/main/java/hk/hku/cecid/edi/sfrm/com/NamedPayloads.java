@@ -15,8 +15,8 @@ import java.util.StringTokenizer;
 import java.util.List;
 import java.util.Vector;
 
+import hk.hku.cecid.edi.sfrm.util.PathHelper;
 import hk.hku.cecid.piazza.commons.io.NIOHandler;
-import hk.hku.cecid.piazza.commons.io.PathHelper;
 
 /** 
  * A Named payloads is a kind of payload (file attachment) that
@@ -36,7 +36,10 @@ import hk.hku.cecid.piazza.commons.io.PathHelper;
  * 
  * @author Twinsen Tsang
  * @version 1.0.2
- * @since	1.0.0 
+ * @since	1.0.0
+ * 
+ * @version 2.0.0
+ * @since	1.0.2 
  */
 public abstract class NamedPayloads {
 
@@ -59,7 +62,17 @@ public abstract class NamedPayloads {
 	 * The prefix of uploading payload.
 	 */
 	protected static final String processedPrefix  = "%%";
-		
+	
+	/**
+	 * The start bracket to enclose the filename of the single file, not packed payload
+	 */
+	protected static final String filenameStartBracket = "[";
+	
+	/**
+	 * The end bracket to enclose the filename of the single file, not packed payload
+	 */
+	protected static final String filenameEndBracket = "]";
+	
 	/**
 	 * The state to prefix hash map 
 	 */

@@ -9,8 +9,8 @@
 
 package hk.hku.cecid.edi.as2.dao;
 
-import hk.hku.cecid.piazza.commons.dao.DVO;
 import hk.hku.cecid.piazza.commons.dao.DAOException;
+import hk.hku.cecid.piazza.commons.dao.DVO;
 import hk.hku.cecid.piazza.commons.dao.ds.DataSourceDAO;
 
 import java.sql.Timestamp;
@@ -66,6 +66,10 @@ public class MessageDataSourceDAO extends DataSourceDAO implements MessageDAO {
     		sql += " AND " + getFilter("messages_history_filter_status");
     		parameters.add(data.getStatus());      		
     	}
+    	if (data.getPrimalMessageId() != null && !data.getPrimalMessageId().trim().equals("")) {
+    		sql += " AND " + getFilter("messages_history_filter_primal_message_id");
+    		parameters.add(data.getPrimalMessageId());
+    	}    
     	
     	sql += " " + getOrder("find_messages_by_history_order");
     	parameters.add(new Integer(numberOfMessage));
@@ -125,6 +129,10 @@ public class MessageDataSourceDAO extends DataSourceDAO implements MessageDAO {
         		sql += " AND " + getFilter("messages_history_filter_status");
         		parameters.add(data.getStatus());      		
         	}
+        	if (data.getPrimalMessageId() != null && !data.getPrimalMessageId().trim().equals("")) {
+        		sql += " AND " + getFilter("messages_history_filter_primal_message_id");
+        		parameters.add(data.getPrimalMessageId());
+        	}    
         	
         	List result = executeRawQuery(sql, parameters.toArray());
             List resultEntry = (List)result.get(0);

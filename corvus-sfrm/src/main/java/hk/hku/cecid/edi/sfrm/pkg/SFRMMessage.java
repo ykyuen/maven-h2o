@@ -41,6 +41,8 @@ import org.bouncycastle.mail.smime.SMIMEEnvelopedGenerator;
 import org.bouncycastle.mail.smime.SMIMESigned;
 import org.bouncycastle.mail.smime.SMIMESignedGenerator;
 
+import hk.hku.cecid.edi.sfrm.activation.FileRegionDataSource;
+import hk.hku.cecid.edi.sfrm.spa.SFRMException;
 import hk.hku.cecid.piazza.commons.io.IOHandler;
 import hk.hku.cecid.piazza.commons.util.StringUtilities;
 
@@ -65,19 +67,25 @@ import hk.hku.cecid.piazza.commons.util.StringUtilities;
  * 	<li> Support cloning.</li>
  * <ul>
  * 
+ * Version 2.0.0 -
+ * <ul>
+ * 	<li> Add Is-Packed header field</li>
+ * 	<li> Add Filename header field</li>
+ * </ul>
+ * 
  * @author Twinsen Tsang
  * @version 1.0.2
  * @since	1.0.0
  */
 public class SFRMMessage implements Cloneable {
-		
+	
 	// signing and encryption algorithm
 	public static final String ALG_ENCRYPT_RC2 = "rc2";
 	public static final String ALG_ENCRYPT_3DES = "3des";
 	public static final String ALG_SIGN_MD5 = "md5";
 	public static final String ALG_SIGN_SHA1 = "sha1";
 	
-    private static final int BUFFER_SIZE = 8192;
+	private static final int BUFFER_SIZE = 8192;
 	
 	/**
 	 * The InternetHeaders used for managing RFC822 style headers.
@@ -105,7 +113,7 @@ public class SFRMMessage implements Cloneable {
         mailcap.addMailcap("application/octet-stream;; x-java-content-handler=hk.hku.cecid.piazza.commons.activation.SFRMDataContentHandler");
         CommandMap.setDefaultCommandMap(mailcap);
 	}
-
+	
 	/**
 	 * Creates a new instance of SFRM Message.
 	 */
@@ -184,7 +192,7 @@ public class SFRMMessage implements Cloneable {
 	 */
 	public void setMessageID(String messageId) {
 		if (messageId != null)
-			setHeader(SFRMHeader.MESSAGE_ID, StringUtilities.wraps(messageId, "<", ">"));
+			setHeader(SFRMHeader.MESSAGE_ID, messageId);
 	}
 	
 	/**
@@ -193,7 +201,7 @@ public class SFRMMessage implements Cloneable {
 	 * @return the message ID.
 	 */
 	public String getMessageID() {
-		return StringUtilities.trim(getHeader(SFRMHeader.MESSAGE_ID), "<", ">");
+		return getHeader(SFRMHeader.MESSAGE_ID);
 	}
 
 	/**
@@ -332,6 +340,7 @@ public class SFRMMessage implements Cloneable {
 	 * 			the mic value of this message. 
 	 */
 	public void setMicValue(String micValue) throws SFRMMessageException{
+		//this.setHeader(SFRMHeader.SFRM_MIC, micValue);
 		try{
 			this.bodyPart.setContentMD5(micValue);
 		}catch(Exception e){
@@ -387,23 +396,6 @@ public class SFRMMessage implements Cloneable {
 		return StringUtilities.parseLong(this
 				.getHeader(SFRMHeader.SFRM_TOTAL_SIZE));
 	}
-			
-	/** 
-	 * @param isLastReceipt
-	 * 			The boolean flag for indicating this message segment is last receipt of 
-	 * 			a particular message. 
-	 */
-	public void setIsLastReceipt(boolean isLastReceipt){
-		this.setHeader(SFRMHeader.SFRM_RECEIPT_LAST, String
-				.valueOf(isLastReceipt));
-	}
-	
-	/** 
-	 * @return true if it is the last receipt (last ack) of the particular message.
-	 */
-	public boolean getIsLastReceipt(){
-		return StringUtilities.parseBoolean(this.getHeader(SFRMHeader.SFRM_RECEIPT_LAST));
-	}
 	
 	/**
 	 * Set whether the message is signed.
@@ -425,6 +417,22 @@ public class SFRMMessage implements Cloneable {
 		if (this.mc == null)
 			this.getClassifier();
 		this.mc.setEncrypted(isEncrypted);
+	}
+	
+	/**
+	 * Set the filename of the SFRM payload
+	 * @param filename the filename of the SFRM payload to be set
+	 */
+	public void setFilename(String filename){
+		this.setHeader(SFRMHeader.SFRM_FILENAME, filename);
+	}
+	
+	/**
+	 * Get the filename of SFRM payload
+	 * @return filename of the SFRM payload
+	 */
+	public String getFilename(){
+		return this.getHeader(SFRMHeader.SFRM_FILENAME);
 	}
 	
 	/**
@@ -457,10 +465,15 @@ public class SFRMMessage implements Cloneable {
 	 */
 	public void setContent(Object content, String contentType)
 			throws SFRMMessageException {
+		setContent(content, contentType, "binary");
+	}
+	
+	public void setContent(Object content, String contentType, String transferEncoding)
+		throws SFRMMessageException {
 		try {
 			bodyPart.setContent(content, contentType);
 			bodyPart.setHeader("Content-Type", contentType);
-			bodyPart.setHeader("Content-Transfer-Encoding", "binary");
+			bodyPart.setHeader("Content-Transfer-Encoding", transferEncoding);
 		} catch (MessagingException e) {
 			throw new SFRMMessageException("Unable to set SFRM Segment content", e);
 		}
@@ -501,7 +514,7 @@ public class SFRMMessage implements Cloneable {
 	 * @return the content stream of this message.
 	 * 		   null if there is no content.
 	 */
-	public InputStream getContentStream(){
+	public InputStream getContentStream() throws IOException{
 		try {			
 			return bodyPart.getRawInputStream();
 		} catch (MessagingException e) {
@@ -747,8 +760,7 @@ public class SFRMMessage implements Cloneable {
 			.append("Partner Id  : " + this.getPartnershipId() 	+ " \n")
 			.append("SegmentNo   : " + this.getSegmentNo()		+ " \n")
 			.append("SegmentType : " + this.getSegmentType()	+ " \n")
-			.append("MIC value   : " + this.getMicValue()		+ " \n")
-			.append("Last Receipt: " + this.getIsLastReceipt() 	+ " \n"); 
+			.append("MIC value   : " + this.getMicValue()		+ " \n"); 
 		return ret.toString();
 	}
 	
@@ -756,15 +768,13 @@ public class SFRMMessage implements Cloneable {
 	 * Generate checksum from SFRMessage content in base64 format.
 	 * The class type of content will be checked for incoming and outgoing message.
 	 * 
-	 * For outgoing payload segment, FileRegionDataSource is expected
-	 * For incoming payload segment, InputStream (ByteArrayInputStream) is expected
-	 *
+	 * @param inStream stream of data to be digest to produce md5 hash
 	 * @return mic value in base64 format
 	 */
-	public String digest() throws SFRMMessageException {
+	public static String digest(InputStream inStream) throws SFRMMessageException{
 		try {
 			MessageDigest md = MessageDigest.getInstance("md5");
-	        DigestInputStream dis = new DigestInputStream(this.bodyPart.getInputStream(), md);
+	        DigestInputStream dis = new DigestInputStream(inStream, md);
 	        
 	        byte[] buf = new byte[BUFFER_SIZE];
 	        while (dis.read(buf) != -1) {
@@ -774,163 +784,181 @@ public class SFRMMessage implements Cloneable {
 		} catch (Exception e) {
 			throw new SFRMMessageException("Unable to generate message digest", e);
 		}
-    }	    
+	}
 	
-    public void sign(X509Certificate cert, PrivateKey privateKey, String digestAlg) throws SFRMMessageException {
+	public static String digest(FileRegionDataSource frds) throws SFRMMessageException{
+		try {
+			MessageDigest md = MessageDigest.getInstance("md5");
+			md.update(frds.getByteBuffer());
+			return (new sun.misc.BASE64Encoder()).encode(md.digest());
+		} catch (Exception e) {
+			throw new SFRMMessageException("Unable to generate message digest", e);
+		}
+	}	
+	
+	/*
+	 * Generate checksum from SFRMessage content in base64 format.
+	 * The class type of content will be checked for incoming and outgoing message.
+	 * 
+	 * For outgoing payload segment, FileRegionDataSource is expected
+	 * For incoming payload segment, InputStream (ByteArrayInputStream) is expected
+	 * For incoming acknowledgement request, String is expected
+	 * @return mic value in base64 format
+	 */
+	public String digest() throws SFRMException {
+		try {
+			Object obj = this.getBodyPart().getContent();
+			if (obj instanceof InputStream) 
+				return digest((InputStream)obj);
+			else if (obj instanceof FileRegionDataSource)
+				return digest((FileRegionDataSource)obj);
+			else if (obj instanceof String)
+				return digest(this.bodyPart.getInputStream());
+			else 
+				throw new SFRMMessageException("Message content object not supported to be digested - " + obj.getClass().getName());
+		} catch(Exception e){
+			throw new SFRMException("Unable to generate message digest", e);
+		}
+    }	
+	
+    public void sign(X509Certificate cert, PrivateKey privateKey, String digestAlg) throws SFRMException {
         try {
-            try {
-                /* Create the SMIMESignedGenerator */
-                SMIMECapabilityVector capabilities = new SMIMECapabilityVector();
-                capabilities.addCapability(SMIMECapability.dES_EDE3_CBC);
-                capabilities.addCapability(SMIMECapability.rC2_CBC, 128);
-                capabilities.addCapability(SMIMECapability.dES_CBC);
-    
-                /*
-                ASN1EncodableVector attributes = new ASN1EncodableVector();
-                attributes.add(new SMIMEEncryptionKeyPreferenceAttribute(
-                    new IssuerAndSerialNumber(new X509Name(cert.getIssuerDN().getName()), cert.getSerialNumber()))
-                );
-                attributes.add(new SMIMECapabilitiesAttribute(capabilities));
-                */
-    
-                SMIMESignedGenerator signer = new SMIMESignedGenerator();
-                signer.setContentTransferEncoding("binary");
-                // signer.addSigner(privateKey, cert, digestAlg, new AttributeTable(attributes), null);
-                
-                if (digestAlg.equalsIgnoreCase(ALG_SIGN_MD5))
-                	signer.addSigner(privateKey, cert, SMIMESignedGenerator.DIGEST_MD5);
-                else if (digestAlg.equalsIgnoreCase(ALG_SIGN_SHA1))
-                	signer.addSigner(privateKey, cert, SMIMESignedGenerator.DIGEST_SHA1);
-                else
-                	throw new SFRMMessageException("Encryption algorithm error - " + digestAlg);
-    
-                /* Add the list of certs to the generator */
-                ArrayList<X509Certificate> certList = new ArrayList<X509Certificate>();
-                certList.add(cert);
-                CertStore certs = CertStore.getInstance("Collection",
-                        new CollectionCertStoreParameters(certList), "BC");
-                signer.addCertificatesAndCRLs(certs);
-    
-                /* Sign the body part */
-                MimeMultipart mm = signer.generate(bodyPart, "BC");
+        	
+            /* Create the SMIMESignedGenerator */
+            SMIMECapabilityVector capabilities = new SMIMECapabilityVector();
+            capabilities.addCapability(SMIMECapability.dES_EDE3_CBC);
+            capabilities.addCapability(SMIMECapability.rC2_CBC, 128);
+            capabilities.addCapability(SMIMECapability.dES_CBC);
+                        
+            SMIMESignedGenerator signer = new SMIMESignedGenerator();
+            
+            signer.setContentTransferEncoding("binary");
+            
+            if (digestAlg.equalsIgnoreCase(ALG_SIGN_MD5))
+            	signer.addSigner(privateKey, cert, SMIMESignedGenerator.DIGEST_MD5);
+            else if (digestAlg.equalsIgnoreCase(ALG_SIGN_SHA1))
+            	signer.addSigner(privateKey, cert, SMIMESignedGenerator.DIGEST_SHA1);
+            else
+            	throw new SFRMException("Encryption algorithm error - " + digestAlg);
 
-                InternetHeaders headers = new InternetHeaders();
-                // boolean isContentTypeFolded = new Boolean(System.getProperty("mail.mime.foldtext","true")).booleanValue();
-                // headers.setHeader("Content-Type", isContentTypeFolded? mm.getContentType():mm.getContentType().replaceAll("\\s", " "));
-                headers.setHeader("Content-Type", mm.getContentType());
-                
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                mm.writeTo(baos);  
-                this.bodyPart = new MimeBodyPart(headers, baos.toByteArray());
-                this.setIsSigned(true);
-                
-            } catch (org.bouncycastle.mail.smime.SMIMEException ex) {
-                throw new SFRMMessageException(ex.getMessage(), ex.getUnderlyingException());
-            }
+            /* Add the list of certs to the generator */
+            ArrayList<X509Certificate> certList = new ArrayList<X509Certificate>();
+            certList.add(cert);
+            CertStore certs = CertStore.getInstance("Collection",
+                    new CollectionCertStoreParameters(certList), "BC");
+            signer.addCertificatesAndCRLs(certs);
+
+            /* Sign the body part */
+            MimeMultipart mm = signer.generate(bodyPart, "BC");
+
+            InternetHeaders headers = new InternetHeaders();
+            headers.setHeader("Content-Type", mm.getContentType());
+            
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            mm.writeTo(baos);
+           
+            this.bodyPart = new MimeBodyPart(headers, baos.toByteArray());
+            
+            this.setIsSigned(true);
+            
+        } catch (org.bouncycastle.mail.smime.SMIMEException ex) {
+            throw new SFRMException("Unable to sign body part", ex.getUnderlyingException());
         } catch (Exception e) {
-            throw new SFRMMessageException("Unable to sign body part", e);
+            throw new SFRMException("Unable to sign body part", e);
         }
     }	
     
-    public void verify(X509Certificate cert) throws SFRMMessageException {
+    public void verify(X509Certificate cert) throws SFRMException {
         try {
-        	try {
-	            SMIMESigned signed = new SMIMESigned((MimeMultipart)bodyPart.getContent());
-	            // CertStore cs = signed.getCertificatesAndCRLs("Collection", "BC");
-	            SignerInformationStore signers = signed.getSignerInfos();
-	            Iterator signerInfos = signers.getSigners().iterator();
-	        
-	            while (signerInfos.hasNext()) {
-	                SignerInformation signerInfo = (SignerInformation)signerInfos.next();
-	                if (!signerInfo.verify(cert, "BC")) {
-	                    throw new SFRMMessageException("Verification failed");
-	                }
-	            }
-	            
-	            MimeBodyPart signedPart = signed.getContent();
-	            if (signedPart == null) {
-	                throw new SFRMMessageException("Unable to extract signed part");
-	            }
-	            else {
-	            	this.bodyPart = signedPart;
-	            	this.setIsSigned(true);
-	            }
-        	} catch (org.bouncycastle.cms.CMSException ex) {
-        		throw new SFRMMessageException(ex.getMessage(), ex.getUnderlyingException());
-        	}
-        } catch (Exception e) {
-            throw new SFRMMessageException("Unable to verify body part", e);
-        }
-    }    
-    
-    public void encrypt(X509Certificate cert, String encryptAlg) throws SFRMMessageException {
-        try {
-            try {
-                /* Create the encrypter */
-                SMIMEEnvelopedGenerator encrypter = new SMIMEEnvelopedGenerator();
-                encrypter.setContentTransferEncoding("binary");
-                encrypter.addKeyTransRecipient(cert);
+            SMIMESigned signed = new SMIMESigned((MimeMultipart)bodyPart.getContent());
+            SignerInformationStore signers = signed.getSignerInfos();
+            Iterator signerInfos = signers.getSigners().iterator();
         
-                /* Encrypt the body part */
-            	if (encryptAlg.equalsIgnoreCase(ALG_ENCRYPT_RC2))
-            		this.bodyPart = encrypter.generate(bodyPart, SMIMEEnvelopedGenerator.RC2_CBC, "BC");
-            	else if (encryptAlg.equalsIgnoreCase(ALG_ENCRYPT_3DES))
-            		this.bodyPart = encrypter.generate(bodyPart, SMIMEEnvelopedGenerator.DES_EDE3_CBC, "BC");
-            	else
-            		throw new SFRMMessageException("Encryption algorithm error - " + encryptAlg);
-                
-                this.setIsEncrypted(true);                
-            } catch (org.bouncycastle.mail.smime.SMIMEException ex) {
-                throw new SFRMMessageException(ex.getMessage(), ex.getUnderlyingException());
+            while (signerInfos.hasNext()) {
+                SignerInformation signerInfo = (SignerInformation)signerInfos.next();
+                if (!signerInfo.verify(cert, "BC")) {
+                    throw new SFRMMessageException("Verification failed");
+                }
             }
+            
+            MimeBodyPart signedPart = signed.getContent();
+            if (signedPart == null) {
+                throw new SFRMMessageException("Unable to extract signed part");
+            }
+            else {
+            	this.bodyPart = signedPart;
+            	this.setIsSigned(true);
+            }
+            
+    	} catch (org.bouncycastle.cms.CMSException ex) {
+    		throw new SFRMException("Unable to verify body part", ex.getUnderlyingException());
         } catch (Exception e) {
-            throw new SFRMMessageException("Unable to encrypt body part", e);
+            throw new SFRMException("Unable to verify body part", e);
         }
     }    
     
-    public void decrypt(X509Certificate cert, PrivateKey privateKey) throws SFRMMessageException {
-        try {
-        	try {
-	            SMIMEEnveloped m = new SMIMEEnveloped(bodyPart);
-	            RecipientId recId = new RecipientId();
-	    
-	            recId.setSerialNumber(cert.getSerialNumber());
-	            recId.setIssuer(cert.getIssuerX500Principal().getEncoded());
-	    
-	            RecipientInformationStore  recipients = m.getRecipientInfos();
-	            RecipientInformation       recipient = recipients.get(recId);
-	    
-	            if (recipient == null) {
-	                throw new SFRMMessageException("Invalid encrypted content");
-	            }
-	            this.bodyPart = new MimeBodyPart(new ByteArrayInputStream(recipient.getContent(privateKey, "BC")));
-	            this.setIsEncrypted(true);
-        	} catch (org.bouncycastle.cms.CMSException ex) {
-        		throw new SFRMMessageException(ex.getMessage(), ex.getUnderlyingException());
-        	}
+    public void encrypt(X509Certificate cert, String encryptAlg) throws SFRMException {
+        try {       	
+            /* Create the encrypter */
+            SMIMEEnvelopedGenerator encrypter = new SMIMEEnvelopedGenerator();
+            encrypter.setContentTransferEncoding("binary");
+            encrypter.addKeyTransRecipient(cert);
+    
+            /* Encrypt the body part */
+        	if (encryptAlg.equalsIgnoreCase(ALG_ENCRYPT_RC2))
+        		this.bodyPart = encrypter.generate(bodyPart, SMIMEEnvelopedGenerator.RC2_CBC, "BC");
+        	else if (encryptAlg.equalsIgnoreCase(ALG_ENCRYPT_3DES))
+        		this.bodyPart = encrypter.generate(bodyPart, SMIMEEnvelopedGenerator.DES_EDE3_CBC, "BC");
+        	else
+        		throw new SFRMException("Encryption algorithm error - " + encryptAlg);
+            
+            this.setIsEncrypted(true);
+            
+        } catch (org.bouncycastle.mail.smime.SMIMEException ex) {
+            throw new SFRMException("Unable to encrypt body part", ex.getUnderlyingException());
         } catch (Exception e) {
-            throw new SFRMMessageException("Unable to decrypt body part", e);
+            throw new SFRMException("Unable to encrypt body part", e);
         }
     }    
     
-    public boolean isEncryptedContentType() throws SFRMMessageException {
+    public void decrypt(X509Certificate cert, PrivateKey privateKey) throws SFRMException {
         try {
-            // String contentType = bodyPart.getContentType();
-            // return (contentType != null && contentType.toLowerCase().indexOf("enveloped-data") != -1);
+            SMIMEEnveloped m = new SMIMEEnveloped(bodyPart);
+            RecipientId recId = new RecipientId();
+    
+            recId.setSerialNumber(cert.getSerialNumber());
+            recId.setIssuer(cert.getIssuerX500Principal().getEncoded());
+    
+            RecipientInformationStore  recipients = m.getRecipientInfos();
+            RecipientInformation       recipient = recipients.get(recId);
+    
+            if (recipient == null) {
+                throw new SFRMMessageException("Invalid encrypted content");
+            }
+            this.bodyPart = new MimeBodyPart(new ByteArrayInputStream(recipient.getContent(privateKey, "BC")));
+            this.setIsEncrypted(true);
+    	} catch (org.bouncycastle.cms.CMSException ex) {
+    		throw new SFRMException("Unable to decrypt body part", ex.getUnderlyingException());
+        } catch (Exception e) {
+            throw new SFRMException("Unable to decrypt body part", e);
+        }
+    }    
+    
+    public boolean isEncryptedContentType() throws SFRMException {
+        try {
         	return bodyPart.isMimeType("application/pkcs7-mime");
         }
         catch (MessagingException e) {
-            throw new SFRMMessageException("Unable to check if body part is encrypted.", e);
+            throw new SFRMException("Unable to check if body part is encrypted.", e);
         }
     }
     
-    public boolean isSignedContentType() throws SFRMMessageException {
+    public boolean isSignedContentType() throws SFRMException {
         try {
             return bodyPart.isMimeType("multipart/signed");
         }
         catch (MessagingException e) {
-            throw new SFRMMessageException("Unable to check if body part is signed.", e);
+            throw new SFRMException("Unable to check if body part is signed.", e);
         }
     }
-
 }

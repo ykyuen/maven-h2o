@@ -6,7 +6,6 @@ package hk.hku.cecid.edi.sfrm.dao.ds;
 
 import java.sql.Timestamp;
 import java.util.GregorianCalendar;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -123,7 +122,7 @@ public class SFRMMessageDSDAO extends DataSourceDAO implements SFRMMessageDAO {
 				new Object[] { messageBox, partnershipId, status } );
 	}
 	
-	/*
+	/**
 	 * Find number of the message in the message history by a given search criteria given by dao
 	 * @param dao Search Criteria
 	 * @return Number of message found
@@ -186,8 +185,7 @@ public class SFRMMessageDSDAO extends DataSourceDAO implements SFRMMessageDAO {
 			sql += " " + getOrder("find_message_by_history_order");
 			parameters.add(new Integer(numberOfMessage));
 			parameters.add(new Integer(offset));
-			
-			SFRMProcessor.core.log.info(sql);
+			SFRMProcessor.getInstance().getLogger().info(sql);
 			
 			List queryResult = executeQuery(sql, parameters.toArray());
 			return queryResult;
@@ -230,7 +228,7 @@ public class SFRMMessageDSDAO extends DataSourceDAO implements SFRMMessageDAO {
 			parameters.add(new Integer(numberOfMessage));
 			parameters.add(new Integer(offset));
 			
-			SFRMProcessor.core.log.info(sql);
+			SFRMProcessor.getInstance().getLogger().info(sql);
 			
 			List queryResult = executeQuery(sql, parameters.toArray());
 			return queryResult;
@@ -238,7 +236,26 @@ public class SFRMMessageDSDAO extends DataSourceDAO implements SFRMMessageDAO {
 			 throw new DAOException("Unable to find the number of messages by history", e);
 		}
 	}
-        
+    
+    public List findMessageForAcknowledgement(int numberOfMessage, int offset) throws DAOException{
+    	try{
+    		List messagesDVO = new ArrayList();
+    		List parameters = new ArrayList();
+    		//Construct the SQL
+    		String sql = getFinder("find_message_for_acknowledgement");
+    		String order = getOrder("find_message_for_acknowledgement_order");
+    		sql = sql + " " + order;
+    		//Build the parameters
+    		parameters.add(new Integer(numberOfMessage));
+    		parameters.add(new Integer(offset));
+    		List queryResult = executeQuery(sql, parameters.toArray());
+    		return queryResult;   		   		
+    	}catch(Exception e){
+    		e.printStackTrace();
+    		throw new DAOException("Unable to find the message that is ready for requesting acknowledgement");
+    	}
+    }
+    
     private void applyCommonFilter(SFRMMessageDVO data, List paraList, List parameters){
     	if(data.getMessageId()!=null && !data.getMessageId().trim().equals("")){
 			paraList.add(getFilter("find_number_of_message_by_history_filter_message_id"));

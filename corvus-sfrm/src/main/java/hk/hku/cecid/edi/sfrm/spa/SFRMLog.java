@@ -71,7 +71,24 @@ public interface SFRMLog {
 	 * for <code>IncomingPayloadCollector</code> log.
 	 */
 	public static final String IPTC_CALLER	 = " IPTC  : ";
-		
+	
+	/**
+	 * The constant field for indicating the log prefix
+	 * for <code>AcknowledgementCollector</code> log.
+	 */
+	public static final String ATC_CALLER	 = " ATC   : ";
+	
+	/**
+	 * The constant field for indicating the log prefix
+	 * for <code>AcknowledgementTask</code> log.
+	 */
+	public static final String AT_CALLER	 = " AT	   : "; 
+	
+	/**
+	 * The constant field for indicating the log prefix
+	 * for <code>MessageStatusCollecotr</code> log.
+	 */
+	public static final String MSC_CALLER 	 = " MSC   : ";
 	/**
 	 * The constant field for indicating the log prefix
 	 * for <code>SFRMMessageSegmentHandler</code> log.

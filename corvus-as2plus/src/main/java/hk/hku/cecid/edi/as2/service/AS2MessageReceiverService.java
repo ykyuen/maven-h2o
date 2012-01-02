@@ -15,6 +15,7 @@ import hk.hku.cecid.edi.as2.dao.MessageDVO;
 import hk.hku.cecid.edi.as2.dao.RepositoryDAO;
 import hk.hku.cecid.edi.as2.dao.RepositoryDVO;
 import hk.hku.cecid.edi.as2.pkg.AS2Message;
+import hk.hku.cecid.edi.as2.util.AS2Util;
 import hk.hku.cecid.piazza.commons.activation.ByteArrayDataSource;
 import hk.hku.cecid.piazza.commons.dao.DAOException;
 import hk.hku.cecid.piazza.commons.io.IOHandler;
@@ -33,11 +34,11 @@ import java.util.zip.DeflaterOutputStream;
 
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
+import javax.xml.namespace.QName;
 import javax.xml.soap.AttachmentPart;
+import javax.xml.soap.SOAPBodyElement;
 import javax.xml.soap.SOAPElement;
 import javax.xml.soap.SOAPMessage;
-
-import org.w3c.dom.Element;
 
 /**
  * AS2MessageReceiverListService
@@ -47,12 +48,32 @@ import org.w3c.dom.Element;
  */
 public class AS2MessageReceiverService extends WebServicesAdaptor {
 
+	public static String NAMESPACE = "http://service.as2.edi.cecid.hku.hk/";
+	
     public void serviceRequested(WebServicesRequest request,
             WebServicesResponse response) throws SOAPRequestException,
             DAOException {
 
-        Element[] bodies = request.getBodies();
-        String messageId = getText(bodies, "messageId");
+    	String messageId = null;
+
+    	boolean wsi = false;
+    	
+		SOAPBodyElement[] bodies = (SOAPBodyElement[]) request.getBodies();
+		// WS-I <RequestElement> 
+	    if (bodies != null && bodies.length == 1 && 
+	    		isElement(bodies[0], "RequestElement", NAMESPACE)) {
+	        
+	    	AS2PlusProcessor.getInstance().getLogger().debug("WS-I Request");
+
+	    	wsi = true;
+	    	
+	    	SOAPElement[] childElement = getChildElementArray(bodies[0]);
+	    	messageId = getText(childElement, "messageId");
+	    } else {
+	    	AS2PlusProcessor.getInstance().getLogger().debug("Non WS-I Request");
+	    	
+	    	messageId = getText(bodies, "messageId");
+	    }
 
         if (messageId == null) {
             throw new SOAPFaultException(SOAPFaultException.SOAP_FAULT_CLIENT,
@@ -97,34 +118,13 @@ public class AS2MessageReceiverService extends WebServicesAdaptor {
 //				MimeBodyPart contentPart = new MimeBodyPart(new InternetHeaders(ins), repoDvo.getContent());
             	AS2Message as2Msg = new AS2Message(ins);
             	
-				// Retrieve Filename from MIME Header
+				// Retrieve Filename from MIME Header            	
 	            String[] values = as2Msg.getBodyPart().getHeader("Content-Disposition");
-	            String filename = null;
-	            if(values != null && values.length > 0){
-	            	for(String value : values){
-	            		 //Debug Message
-	    	            AS2PlusProcessor.getInstance().getLogger().debug("R Value: " + value);
-	    	            		
-	            		String[] tokens = value.split(";");
-	            		if(tokens!= null && tokens.length > 1 &&
-	            				tokens[0].trim().equalsIgnoreCase("attachment")){
-	            			for(int index =1; index < tokens.length; index++){
-	            				if(tokens[index].trim().startsWith("filename")){
-	            					filename = tokens[index].substring(tokens[index].indexOf("=") +1);
-	            					if(filename.trim().length() == 0){
-	            						filename = null;
-	            						continue;
-	            					}
-	            					break;
-	            				}
-	            			}
-	            		}
-	            	}
-	            }
+	            String filename = AS2Util.getFileNameFromMIMEHeader(values);
 	            
 	            //Debug Message
-	            AS2PlusProcessor.getInstance().getLogger().debug(
-	            		"R Filename found? " + (filename ==null?"Not found":filename));
+//	            AS2PlusProcessor.getInstance().getLogger().debug(
+//	            		"AS2Plus Filename found? " + (filename ==null?"Not found":filename));
 				
 				//Check if compression is needed
 				DataSource ds = null;
@@ -146,13 +146,33 @@ public class AS2MessageReceiverService extends WebServicesAdaptor {
 				
 				//Create AttachmentPart and add to SOAP Message
 				AttachmentPart attachmentPart = soapResponseMessage.createAttachmentPart();
-				attachmentPart.setContentId(as2Msg.getBodyPart().getContentID());
+				attachmentPart.setContentId("<" + as2Msg.getMessageID() + ">");				
 				attachmentPart.setContentType(as2Msg.getBodyPart().getContentType());
+				attachmentPart.addMimeHeader("Content-Transfer-Encoding", "binary");
 				
-				//Set Filename if filename value is valid and received
-				if(filename != null && !filename.trim().equalsIgnoreCase("")){
+				try{
+					//Set Filename if filename value is valid and received
+					if(filename != null && !filename.trim().equalsIgnoreCase("")){
+
+						//Validate Filename value
+						char[] filenameChars = filename.toCharArray();
+		            	for(char charValue : filenameChars){
+		            		if(charValue >= 128){
+		            			 throw new Exception(
+		            					 "Filename contains Non-ASCII characters in Message: "+as2Msg.getMessageID());
+		            		}
+		            	}
+
+						attachmentPart.addMimeHeader(
+								"Content-Disposition", "attachment; filename="+filename);
+					}
+				}catch(Exception exp){
+					//If there is any abnormal value of MimeHeader 
+					// and caused Exception the filename will be replaced with default value.
+					 AS2PlusProcessor.getInstance().getLogger().error(
+	                         "Default Filename Value applied on Message["+as2Msg.getMessageID()+"]", exp);
 					attachmentPart.addMimeHeader(
-							"Content-Disposition", "attachment; filename="+filename);
+							"Content-Disposition", "attachment; filename="+ "as2." +as2Msg.getMessageID()+".Payload.0");
 				}
 				
 				attachmentPart.setDataHandler(dh);
@@ -165,72 +185,45 @@ public class AS2MessageReceiverService extends WebServicesAdaptor {
             	 AS2PlusProcessor.getInstance().getLogger().error(
                          "Error in collecting message", e);
 			}
-            
-          
-            
-            /*
-            PayloadRepository repository = AS2Processor
-                    .getIncomingPayloadRepository();
-            Iterator payloadCachesIterator = repository.getPayloadCaches()
-                    .iterator();
-            while (payloadCachesIterator.hasNext()) {
-                PayloadCache cache = (PayloadCache) payloadCachesIterator
-                        .next();
-                String cacheMessageID = cache.getMessageID();
-                if (cacheMessageID.equals(targetMessageDvo.getMessageId())) {
-                    try {
-                        FileInputStream fis = new FileInputStream(cache
-                                .getCache());
-
-                        DataSource ds = null;
-                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-                        if (getParameters().getProperty("is_compress")
-                                .equals("true")) {
-                            DeflaterOutputStream dos = new DeflaterOutputStream(
-                                    baos);
-
-                            IOHandler.pipe(fis, dos);
-                            dos.finish();
-                            ds = new ByteArrayDataSource(baos.toByteArray(),
-                                    "application/deflate");
-                        } else {
-                            IOHandler.pipe(fis, baos);
-                            ds = new ByteArrayDataSource(baos.toByteArray(),
-                                    cache.getContentType());
-                        }
-                        DataHandler dh = new DataHandler(ds);
-
-                        AttachmentPart attachmentPart = soapResponseMessage
-                                .createAttachmentPart();
-                        attachmentPart.setContentId(messageId);
-                        attachmentPart.setDataHandler(dh);
-                        soapResponseMessage.addAttachmentPart(attachmentPart);
-                    	
-                        MessageDAO dao = (MessageDAO) AS2Processor.core.dao
-                                .createDAO(MessageDAO.class);
-                        targetMessageDvo.setStatus(MessageDVO.STATUS_DELIVERED);
-                        dao.persist(targetMessageDvo);
-                    	
-                    } catch (Exception e) {
-                        AS2Processor.core.log.error(
-                                "Error in collecting message", e);
-                    }
-                }
-            }*/
         }
 
         generateReply(response, soapResponseMessage
-                .countAttachments()>0);
+                .countAttachments()>0, wsi, messageId);
     }
 
     private void generateReply(WebServicesResponse response,
-            boolean isReturned) throws SOAPRequestException {
+            boolean isReturned, boolean wsi, String messageId) throws SOAPRequestException {
         try {
-            SOAPElement responseElement = createText(
-                    "hasMessage", Boolean.toString(isReturned),
-                    "http://service.as2.edi.cecid.hku.hk/");
-            response.setBodies(new SOAPElement[] { responseElement });
+        	if (wsi) {
+        		AS2PlusProcessor.getInstance().getLogger().debug("WS-I Response");
+        		
+                SOAPResponse soapResponse = (SOAPResponse) response.getTarget();
+                SOAPMessage soapResponseMessage = soapResponse.getMessage();
+                soapResponseMessage.getMimeHeaders().setHeader("Content-Type", 
+                		"application/xop+xml; charset=UTF-8; type=\"text/xml\"");
+                soapResponseMessage.getSOAPPart().addMimeHeader("Content-ID", "<SOAPBody>");
+                soapResponseMessage.getSOAPPart().addMimeHeader("Content-Transfer-Encoding", "binary");
+                
+	    		SOAPElement responseElement = createElement("ResponseElement", NAMESPACE);
+	    		SOAPElement hasMessageElement = createElement("hasMessage", NAMESPACE, Boolean.toString(isReturned));
+	    		responseElement.addChildElement(hasMessageElement);
+	            
+	    		if (isReturned) {
+		    		SOAPElement payloadElement = createElement("payload", NAMESPACE);
+		    		SOAPElement xopElement = soapFactory.createElement("Include", "xop", 
+		    				"http://www.w3.org/2004/08/xop/include");
+		    		xopElement.addAttribute(new QName("href"), "cid:" + messageId);
+		            payloadElement.addChildElement(xopElement);
+		            responseElement.addChildElement(payloadElement);
+	    		}
+	            
+	            response.setBodies(new SOAPElement[] { responseElement });
+        	} else {
+        		AS2PlusProcessor.getInstance().getLogger().debug("Non WS-I Response");
+        		
+        		SOAPElement responseElement = createElement("hasMessage", NAMESPACE, Boolean.toString(isReturned));
+                response.setBodies(new SOAPElement[] { responseElement });
+            }        	
         } catch (Exception e) {
             throw new SOAPRequestException("Unable to generate reply message",
                     e);

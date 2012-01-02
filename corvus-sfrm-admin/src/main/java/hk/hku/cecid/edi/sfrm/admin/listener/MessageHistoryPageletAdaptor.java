@@ -1,6 +1,3 @@
-/**
- * 
- */
 package hk.hku.cecid.edi.sfrm.admin.listener;
 
 import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
@@ -11,12 +8,10 @@ import hk.hku.cecid.piazza.corvus.admin.listener.AdminPageletAdaptor;
 import hk.hku.cecid.piazza.commons.dao.DAOException;
 import javax.servlet.http.HttpServletRequest;
 import javax.xml.transform.Source;
-
-import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Iterator;
-import java.util.Calendar;
 import hk.hku.cecid.piazza.commons.util.PropertyTree;
+
 /**
  * @author Patrick Yip
  * @version 1.0.0
@@ -27,13 +22,13 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
 		try{
 			dom = getMessageHistory(request);
 		} catch (DAOException e) {
-            SFRMProcessor.core.log.debug(
+            SFRMProcessor.getInstance().getLogger().debug(
                     "Unable to process the message search page request", e);
             throw new RuntimeException(
                     "Unable to process the message search page request", e);
         }
 		
-		SFRMProcessor.core.log.info("Processed the message history search request");
+		SFRMProcessor.getInstance().getLogger().info("Processed the message history search request");
 		return dom.getSource();
 	}
 	
@@ -53,8 +48,6 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
         }else{
         	String messageId = checkStarAndConvertToPercent(request
                     .getParameter("message_id"));
-            String convId = checkStarAndConvertToPercent(request
-                    .getParameter("conv_id"));
             
             // radio button and menu
             String messageBox = checkEmptyAndReturnNull(request
@@ -89,7 +82,7 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
             }
 
             // search the corresponding messages
-            SFRMMessageDAO messageDAO = (SFRMMessageDAO) SFRMProcessor.core.dao
+            SFRMMessageDAO messageDAO = (SFRMMessageDAO) SFRMProcessor.getInstance().getDAOFactory()
                     .createDAO(SFRMMessageDAO.class);
             SFRMMessageDVO messageDVO = (SFRMMessageDVO) messageDAO.createDVO();
 
@@ -149,8 +142,7 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
 		            dom.setProperty("message[" + pi + "]/proceed_time_stamp", timeStr);
 		            
 		            if(returnData.getProceedTimestamp()!=null && returnData.getCompletedTimestamp()!=null){
-		            	TimeDiff elapsedTime = timeDiff(returnData.getProceedTimestamp(), returnData.getCompletedTimestamp());
-//		            	dom.setProperty("message[" + pi + "]/elapsed_time",Integer.toString(elapsedTime.()) + " hour " + Integer.toString(elapsedTime.getMinutes()) + " minute " + Integer.toString(elapsedTime.getSeconds()) + " second");
+		            	TimeDiff elapsedTime = timeDiff(returnData.getCreatedTimestamp(), returnData.getCompletedTimestamp());
 		            	dom.setProperty("message[" + pi + "]/elapsed_time",Integer.toString(elapsedTime.hour) + " hour " + Integer.toString(elapsedTime.minute) + " minute " + Integer.toString(elapsedTime.second) + " second");
 		            }else{
 		            	dom.setProperty("message[" + pi + "]/elapsed_time", "N/A");
@@ -224,12 +216,13 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
 	 * @param endTime Ending time
 	 * @return Different between 2 timestamp
 	 */
+	
 	private TimeDiff timeDiff(Timestamp startTime, Timestamp endTime){
 		long diff = endTime.getTime() - startTime.getTime();
 		TimeDiff diffObj = new TimeDiff();
 		diffObj.hour = (int)(diff / 3600000);
 		diffObj.minute = (int)(diff - diffObj.hour*3600000)/60000;
-		diffObj.second = (int)((diff - diffObj.hour*3600000 - diffObj.minute*60000)/6000);
+		diffObj.second = (int)((diff - diffObj.hour*3600000 - diffObj.minute*60000)/1000);
 		return diffObj;
 	}
 	

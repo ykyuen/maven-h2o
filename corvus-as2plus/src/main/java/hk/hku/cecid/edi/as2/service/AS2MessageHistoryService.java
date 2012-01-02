@@ -3,9 +3,8 @@ package hk.hku.cecid.edi.as2.service;
 import java.util.Iterator;
 import java.util.List;
 
+import javax.xml.soap.SOAPBodyElement;
 import javax.xml.soap.SOAPElement;
-
-import org.w3c.dom.Element;
 
 import hk.hku.cecid.edi.as2.dao.MessageDAO;
 import hk.hku.cecid.edi.as2.dao.MessageDVO;
@@ -23,14 +22,43 @@ public class AS2MessageHistoryService extends WebServicesAdaptor{
 	
 	 public void serviceRequested(WebServicesRequest request, WebServicesResponse response) 
 		throws SOAPRequestException, DAOException{
-	  
-		  Element[] bodies = request.getBodies();
-		  String msgId = getText(bodies, "messageId");
-		  String msgBox = getText(bodies, "messageBox");
-		  String as2From = getText(bodies, "as2From");
-		  String as2To = getText(bodies, "as2To");
-		  String status = getText(bodies, "status");
-		  String limit = getText(bodies, "limit");
+	
+		  String msgId = null;
+		  String msgBox = null;
+		  String as2From = null;
+		  String as2To = null;
+		  String status = null;
+		  String limit = null;
+		 
+	      boolean wsi = false;
+  	      
+	      SOAPBodyElement[] bodies = (SOAPBodyElement[]) request.getBodies();
+	      // WS-I <RequestElement> 
+	      if (bodies != null && bodies.length == 1 && 
+	    		  isElement(bodies[0], "RequestElement", NAMESPACE)) {
+			
+			AS2PlusProcessor.getInstance().getLogger().debug("WS-I Request");
+			
+			wsi = true;
+			
+			SOAPElement[] childElement = getChildElementArray(bodies[0]);
+			msgId = getText(childElement, "messageId");
+			msgBox = getText(childElement, "messageBox");
+			as2From = getText(childElement, "as2From");
+			as2To = getText(childElement, "as2To");
+			status = getText(childElement, "status");
+			limit = getText(childElement, "limit");
+			
+	      } else {
+	    	  AS2PlusProcessor.getInstance().getLogger().debug("Non WS-I Request"); 
+	    	  
+	    	  msgId = getText(bodies, "messageId");
+	    	  msgBox = getText(bodies, "messageBox");
+	    	  as2From = getText(bodies, "as2From");
+	    	  as2To = getText(bodies, "as2To");
+	    	  status = getText(bodies, "status");
+	    	  limit = getText(bodies, "limit");			
+	      }
 		  
 		  AS2PlusProcessor.getInstance().getLogger().debug("Message History Query received request - "+
         		  "MessageID : " + (msgId ==null?"NULL":msgId)
@@ -65,7 +93,7 @@ public class AS2MessageHistoryService extends WebServicesAdaptor{
 			  criteriaDVO.setAs2To(checkString(as2To));
 			  criteriaDVO.setStatus(checkMessageStatus(status));
 			  List results = msgDAO.findMessagesByHistory(criteriaDVO, resultLimit, 0);
-			  generateReply(response, results);
+			  generateReply(response, results, wsi);
 		  }catch(DAOException daoExp){
 			  throw new DAOException("Unable to query the repository", daoExp);
 		  } catch (SOAPRequestException e) {
@@ -124,33 +152,41 @@ public class AS2MessageHistoryService extends WebServicesAdaptor{
 	     * @throws SOAPRequestException
 	     */
 	    private void generateReply(WebServicesResponse response,
-	    	List  messageList) throws SOAPRequestException {
+	    	List  messageList, boolean wsi) throws SOAPRequestException {
 	        try {
-	            SOAPElement rootElement = createElement("messageList", "",
-	            		NAMESPACE, "MessageList");
-
+	    		SOAPElement listElement = createElement("messageList", NAMESPACE); 
+	        	
 	            Iterator messagesIterator = messageList.iterator();
-
 	            for (int i = 0; messagesIterator.hasNext(); i++) {
 	                MessageDVO currentMessage = (MessageDVO) messagesIterator.next();
-
+	            	
 	                // Create Message Element and append Value of MessageID and MessageBox 
-	                SOAPElement msgElement = createElement("messageElement", "", NAMESPACE, "MessageElement")	;                
-	                SOAPElement childElement_MsgId = createText("messageId", currentMessage.getMessageId(), NAMESPACE);
+	                SOAPElement msgElement = createElement("messageElement", NAMESPACE);                
+	                SOAPElement childElement_MsgId = createElement("messageId", NAMESPACE, currentMessage.getMessageId());
 	                
 	                String msgBox = currentMessage.getMessageBox();
 	                if(msgBox.equalsIgnoreCase(MessageDVO.MSGBOX_IN))
 	                	msgBox = "inbox";
 	                if(msgBox.equalsIgnoreCase(MessageDVO.MSGBOX_OUT))
 	                	msgBox = "outbox";
-	                SOAPElement childElement_MsgBox = createText("messageBox", msgBox, NAMESPACE);
+	                SOAPElement childElement_MsgBox = createElement("messageBox", NAMESPACE, msgBox);
 	                msgElement.addChildElement(childElement_MsgId);
 	                msgElement.addChildElement(childElement_MsgBox);
 	                
-	                rootElement.addChildElement(msgElement);
+	                listElement.addChildElement(msgElement);
 	            }
-
-	            response.setBodies(new SOAPElement[] { rootElement });
+	            
+	        	if (wsi) {
+	        		AS2PlusProcessor.getInstance().getLogger().debug("WS-I Response");
+	        		
+		    		SOAPElement responseElement = createElement("ResponseElement", NAMESPACE); 
+		            responseElement.addChildElement(listElement);
+		            response.setBodies(new SOAPElement[] { responseElement });
+	        	} else {
+	        		AS2PlusProcessor.getInstance().getLogger().debug("Non WS-I Response");
+	        		
+	        		response.setBodies(new SOAPElement[] { listElement });
+	        	}
 	        } catch (Exception e) {
 	            throw new SOAPRequestException("Unable to generate reply message", e);
 	        }

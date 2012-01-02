@@ -93,7 +93,11 @@ public class OutgoingMessageTask implements ActiveTask {
                 message.setStatus(MessageDVO.STATUS_DELIVERED);
                 message.setStatusDescription("");
                 daoHandler.createMessageDAO().persist(message);
-
+                
+                AS2EventModule eventModule = (AS2EventModule)
+                	AS2PlusProcessor.getInstance().getModuleGroup().getModule(AS2EventModule.MODULE_ID);
+                eventModule.fireMessageSent(outgoingMessage);
+                
                 try {
                     if (!message.isReceipt() && outgoingMessage.isReceiptRequested() && outgoingMessage.isReceiptSynchronous()) {
                         AS2Message replyMessage = new AS2Message(headers.getInternetHeaders(), replyStream);

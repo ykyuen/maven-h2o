@@ -1,3 +1,12 @@
+/* 
+ * Copyright(c) 2005 Center for E-Commerce Infrastructure Development, The
+ * University of Hong Kong (HKU). All Rights Reserved.
+ *
+ * This software is licensed under the GNU GENERAL PUBLIC LICENSE Version 2.0 [1]
+ * 
+ * [1] http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+ */
+
 package hk.hku.cecid.edi.as2.module.test;
 
 import java.io.ByteArrayInputStream;
@@ -38,6 +47,12 @@ import hk.hku.cecid.piazza.commons.io.IOHandler;
 import hk.hku.cecid.piazza.commons.security.KeyStoreManager;
 import hk.hku.cecid.piazza.commons.test.SystemComponentTest;
 
+/**
+ * Unit Test OutgoingMessageProcessor
+ * 
+ * @author Jumbo Cheung
+ *
+ */
 public class OutgoingMessageProcessorTest extends SystemComponentTest<OutgoingMessageProcessor>{
 
 	PartnershipDAO partnershipDAO;
@@ -60,6 +75,8 @@ public class OutgoingMessageProcessorTest extends SystemComponentTest<OutgoingMe
 		//Prepare the Partnership DVO
 		partnershipDAO = (PartnershipDAO) TARGET.getDAOFactory().createDAO(PartnershipDAO.class);
 		partnershipDVO = (PartnershipDVO) partnershipDAO.createDVO();
+		partnershipDVO.setPartnershipId("OutgoingMessageProcessorTest_P1");
+		partnershipDVO.setIsDisabled(false);
 		partnershipDVO.setAs2From("as2Form");
 		partnershipDVO.setAs2To("as2To");
 		partnershipDVO.setSubject("OutgoingMessageProcessor Unit Test");
@@ -82,7 +99,8 @@ public class OutgoingMessageProcessorTest extends SystemComponentTest<OutgoingMe
 		
 		partnershipDVO.setVerifyCert(IOHandler.readBytes(FIXTURE_LOADER.getResourceAsStream("security/corvus.cer")));
 		partnershipDVO.setEncryptCert(IOHandler.readBytes(FIXTURE_LOADER.getResourceAsStream("security/corvus.cer")));
-
+		partnershipDAO.create(partnershipDVO);
+		
 		//Seting Mail Cap
 		MailcapCommandMap mailcaps = new MailcapCommandMap();
 		mailcaps.addMailcap("application/pkcs7-signature;; x-java-content-handler=org.bouncycastle.mail.smime.handlers.pkcs7_signature");
@@ -119,11 +137,10 @@ public class OutgoingMessageProcessorTest extends SystemComponentTest<OutgoingMe
 		String mid = RANDOM.toString();
 		AS2Message as2Msg = TARGET.storeOutgoingMessage(
 				mid, //MessageID
-				partnershipDVO.getAS2From(),
-				partnershipDVO.getAs2To(),
 				"xml", 
 				partnershipDVO,
-				new InputStreamDataSource(bIns, "xml", MOCK_AS2_MSG));
+				new InputStreamDataSource(bIns, "xml", MOCK_AS2_MSG),
+				null);
 		
 		//Verify MIC value
 		ins = FIXTURE_LOADER.getResourceAsStream(MOCK_AS2_MSG);
@@ -147,8 +164,6 @@ public class OutgoingMessageProcessorTest extends SystemComponentTest<OutgoingMe
 		
 		AS2Message as2Msg = TARGET.storeOutgoingMessage(
 				mid, //MessageID
-				partnershipDVO.getAS2From(),
-				partnershipDVO.getAs2To(),
 				"xml", 
 				partnershipDVO,
 				new InputStreamDataSource(bIns, "xml", MOCK_AS2_MSG));
@@ -195,8 +210,6 @@ public class OutgoingMessageProcessorTest extends SystemComponentTest<OutgoingMe
 		
 		AS2Message as2Msg = TARGET.storeOutgoingMessage(
 				mid, //MessageID
-				partnershipDVO.getAS2From(),
-				partnershipDVO.getAs2To(),
 				"xml", 
 				partnershipDVO,
 				new InputStreamDataSource(bIns, "xml", MOCK_AS2_MSG));
@@ -235,8 +248,6 @@ public class OutgoingMessageProcessorTest extends SystemComponentTest<OutgoingMe
 		partnershipDVO.setIsOutboundEncryptRequired(true);
 		AS2Message as2Msg = TARGET.storeOutgoingMessage(
 				mid, //MessageID
-				partnershipDVO.getAS2From(),
-				partnershipDVO.getAs2To(),
 				"xml", 
 				partnershipDVO,
 				new InputStreamDataSource(bIns, "xml", MOCK_AS2_MSG));
@@ -286,8 +297,6 @@ public class OutgoingMessageProcessorTest extends SystemComponentTest<OutgoingMe
 		//Encrypt message
 		AS2Message as2Msg = TARGET.storeOutgoingMessage(
 				mid, //MessageID
-				partnershipDVO.getAS2From(),
-				partnershipDVO.getAs2To(),
 				"xml", 
 				partnershipDVO,
 				new InputStreamDataSource(bIns, "xml", MOCK_AS2_MSG));
@@ -349,8 +358,6 @@ public class OutgoingMessageProcessorTest extends SystemComponentTest<OutgoingMe
 		//Process message
 		AS2Message as2Msg = TARGET.storeOutgoingMessage(
 				mid, //MessageID
-				partnershipDVO.getAS2From(),
-				partnershipDVO.getAs2To(),
 				"xml", 
 				partnershipDVO,
 				new InputStreamDataSource(bIns, "xml", MOCK_AS2_MSG));

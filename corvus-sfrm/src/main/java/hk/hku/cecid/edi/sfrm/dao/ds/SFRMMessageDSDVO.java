@@ -4,10 +4,15 @@
  */
 package hk.hku.cecid.edi.sfrm.dao.ds;
 
+import java.io.ByteArrayInputStream;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.sql.Timestamp;
 import java.util.Hashtable;
 
 import hk.hku.cecid.edi.sfrm.dao.SFRMMessageDVO;
+import hk.hku.cecid.edi.sfrm.spa.SFRMException;
+import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
 import hk.hku.cecid.piazza.commons.dao.ds.DataSourceDVO;
 
 /**
@@ -40,6 +45,14 @@ import hk.hku.cecid.piazza.commons.dao.ds.DataSourceDVO;
  * 	<li>Added conversation id</li>
  * </ul>
  * 
+ * Version 2.0.0 -
+ * <ul>
+ * 	<li>Added sign algorithm</li>
+ *  <li>Removed is signed</li>
+ *  <li>Added encrypt algorithm</li>
+ *  <li>Removed is encrypted</li>
+ * 
+ * </ul>
  * @author Twinsen Tsang
  * @version 1.0.3
  * @since	1.0.0
@@ -72,19 +85,23 @@ public class SFRMMessageDSDVO extends DataSourceDVO implements SFRMMessageDVO {
 	private String partnerEndpoint;
 	
 	/**
-	 * The cached signing flag [1B]
+	 * The cached sign algorithm ? [1B]
 	 */
-	private boolean isSigned;
+	private String signAlgorithm;
 	
 	/**
-	 * The cached signing flag [1B]
+	 * The cached encrypt algorithm ? [1B]
 	 */
-	private boolean isEncrypted;
-	
+	private String encryptAlgorithm;
+		
 	/**
 	 * The cached status value. [4B]
 	 */
 	private String status;
+	
+	private boolean isHostnameVerified;
+	
+	private String partnerCertContent;
 	
 	/**
 	 * [@OVERRIDE] set the DVO interval dataset and update some 
@@ -92,8 +109,9 @@ public class SFRMMessageDSDVO extends DataSourceDVO implements SFRMMessageDVO {
 	 */
 	public void setData(Hashtable hs){
 		super.setData(hs);
-		this.isSigned 	 = super.getBoolean("isSigned");
-		this.isEncrypted = super.getBoolean("isEncrypted");
+		
+		this.signAlgorithm = super.getString("signAlgorithm");
+		this.encryptAlgorithm = super.getString("encryptAlgorithm");
 	}
 
 	/**
@@ -214,42 +232,79 @@ public class SFRMMessageDSDVO extends DataSourceDVO implements SFRMMessageDVO {
 		super.setLong("totalSize", totalSize);
 	}		
 	
+	public void setIsHostnameVerified(boolean isHostnameVerified) {
+		this.isHostnameVerified = isHostnameVerified;
+		super.setBoolean("isHostnameVerified", isHostnameVerified);
+	}
+
+	public boolean getIsHostnameVerified() {
+		return isHostnameVerified;
+	}
+
+	public void setPartnerCertContent(String partnerCertContent) {
+		this.partnerCertContent = partnerCertContent;
+		super.setString("partnerCertContent", partnerCertContent);
+	}
+
+	public String getPartnerCertContent() {
+		return getString("partnerCertContent");
+	}
+	
+	public X509Certificate getPartnerX509Certificate() throws SFRMException{
+		String certContent = getPartnerCertContent();
+		if(certContent == null){
+			return null;
+		}
+				
+		ByteArrayInputStream certStream = new ByteArrayInputStream(certContent.getBytes());
+						
+		try{
+			X509Certificate cert = (X509Certificate) CertificateFactory
+				.getInstance("X.509")
+				.generateCertificate(certStream);
+			return cert;
+		}catch(Exception e){
+			throw new SFRMException("Unable to load the SFRM partnership certificate" + e);
+		}finally{
+			try{
+				certStream.close();
+				certStream = null;
+			}catch(Exception ie){
+				throw new SFRMException("Error when closing the certificate stream", ie);
+			}
+		}
+	}
+
 	/**
-	 * [@GET, THREAD-SAFETY, CACHABLE] 
-	 * 
-	 * @return whether the message requires to be signed.
+	 * @return the sign algorithm of this message, return null if message not need to sign
 	 */
-	public boolean getIsSigned(){
-		return this.isSigned;
+	public String getSignAlgorithm(){
+		return this.signAlgorithm;
 	}
 	
 	/**
-	 * [@SET, THREAD-SAFETY, CACHABLE] Set whether the message requires signing.
-	 *  
-	 * @param isSigned it sign if it is set, vice versa. 
+	 * Set the signing algorithm of this message
+	 * @param sAlgorithm sign algorithm, null if message didn't require signing
 	 */
-	public void setIsSigned(boolean isSigned){
-		super.setBoolean("isSigned", isSigned);
-		this.isSigned = isSigned;
+	public void setSignAlgorithm(String sAlgorithm){
+		super.setString("signAlgorithm", sAlgorithm);
+		this.signAlgorithm = sAlgorithm;
 	}
 	
 	/**
-	 * [@GET, THREAD-SAFETY, CACHABLE] Set whether the message requires encryption.
-	 * 
-	 * @return whether the message requires encryption.
+	 * @return the encrypt algorithm of this message, return null if message not need to encrypt
 	 */
-	public boolean getIsEncrypted(){
-		return this.isEncrypted;
+	public String getEncryptAlgorithm(){
+		return this.encryptAlgorithm;
 	}
 	
 	/**
-	 * [@SET, THREAD-SAFETY, CACHABLE] Set whether the message requires signing.
-	 *  
-	 * @param isSigned it sign if it is set, vice versa. 
+	 * Set the encrypt algorithm of this message
+	 * @param eAlgorithm encrypt algorithm, null if message didn't require encryption	
 	 */
-	public void setIsEncryped(boolean isEncrypted){
-		super.setBoolean("isEncrypted", isEncrypted);
-		this.isEncrypted = isEncrypted;
+	public void setEncryptAlgorithm(String eAlgorithm){
+		super.setString("encryptAlgorithm", eAlgorithm);
+		this.encryptAlgorithm = eAlgorithm;
 	}
 	
 	/**
@@ -269,6 +324,7 @@ public class SFRMMessageDSDVO extends DataSourceDVO implements SFRMMessageDVO {
 	 * @param status The new status of message DVO.
 	 */
 	public void setStatus(String status){
+		SFRMProcessor.getInstance().getLogger().debug("Inside mDVO status to: " + status);
 		super.setString("status", status);
 		this.status = status;
 	}
@@ -344,4 +400,23 @@ public class SFRMMessageDSDVO extends DataSourceDVO implements SFRMMessageDVO {
 	public void setCompletedTimestamp(Timestamp completedTimestamp){
 		super.put("completedTimestamp", completedTimestamp);
 	}
+	
+	/**
+	 * [@GET, THREAD-SAFETY]
+	 * 
+	 * @return filename field that represent the filename of the original file, if the message payload is not packed in tar format
+	 */
+	public String getFilename(){
+		return super.getString("filename");
+	}
+	
+	/**
+	 * [@SET, THREAD-SAFETY]
+	 * 
+	 * @param filename filename field that represent the filename of the original file, if the message payload is not packed in tar format
+	 */
+	public void setFilename(String filename){
+		super.setString("filename", filename);
+	}
+	
 }

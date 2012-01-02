@@ -5,7 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
-import hk.hku.cecid.piazza.commons.io.Archiver;
+//import hk.hku.cecid.piazza.commons.io.Archiver;
+import hk.hku.cecid.edi.sfrm.com.PayloadException;
 
 /**
  * A packaged payloads represent a archive file typed payloads.<br><br>
@@ -15,6 +16,9 @@ import hk.hku.cecid.piazza.commons.io.Archiver;
  * @author Twinsen Tsang
  * @version 1.0.2
  * @since	1.0.0
+ * 
+ * @version 2.0.0
+ * @since	1.0.2
  */
 public class PackagedPayloads extends NamedPayloads{
 
@@ -27,12 +31,17 @@ public class PackagedPayloads extends NamedPayloads{
 	 * The message id that this payload refer to.
 	 */
 	private String refMessageId;
+		
+	/**
+	 * Indicate whether the payload is packed in tar format
+	 */
+	private boolean isPacked;
 	
 	/**
-	 * The archiver to pack / unpack the packaged payload. 
+	 * Filename of the payload, (if the payload is not packed)
 	 */
-	private Archiver archiver = null;
-		
+	private String filename;
+	
 	/** 
 	 * Protected Explicit Constructor.
 	 * 
@@ -105,32 +114,21 @@ public class PackagedPayloads extends NamedPayloads{
 	}
 	
 	/**
-	 * Set the default archiver for pack / unpack 
-	 * when archiver is not specified.
+	 * Get whether the payload is packed in tar format
 	 * 
-	 * @param archiver
-	 * 			
-	 * 
-	 * @see #pack(FoldersPayload, Archiver)
-	 * @see #pack(File, Archiver)
+	 * @return true for packed, false otherwise
 	 */
-	public void 
-	setDefaultArchiver(Archiver archiver)
-	{
-		if (archiver != null)
-			this.archiver = archiver;
+	public boolean isPacked(){
+		return this.isPacked;
 	}
 	
 	/**
-	 * Get the default archiver.
-	 *  
-	 * @return
-	 * 			The default archiver.
-	 */	
-	public Archiver 
-	getDefaultArchiver()
-	{
-		return this.archiver;
+	 * Get the filename of the payload, if it is not packed in tar format
+	 * 
+	 * @return filename of the payload
+	 */
+	public String getFilename(){
+		return this.filename;
 	}
 	
 	/**
@@ -154,202 +152,7 @@ public class PackagedPayloads extends NamedPayloads{
 	{
 		super.save(content, append);
 	}
-		
-	/**
-	 * Estimate how big in bytes is the packaged payload.<br><br>
-	 * 
-	 * The method does not block and return immediately.<br><br>
-	 * 
-	 * It does not create any packaged and temporary as well.
-	 * 
-	 * @param src
-	 * 			The source payloads. 
-	 * @return	
-	 * 			The estimated packed size of payload, 
-	 * 			or -1 if there are error occur or 
-	 * 			there is no archiver for this payload.
-	 * @see #setDefaultArchiver(Archiver);  			
-	 */
-	public long 
-	estimatePackedSize(File src)
-	{
-		if (this.archiver != null){
-			try{
-				return this.archiver.guessCompressedSize(src);		
-			}catch(Exception e){
-				return -1;		
-			}			
-		}			
-		return -1;
-	}
-	
-	/**
-	 * Estimate how big in bytes is the packaged payload.<br><br>
-	 * 
-	 * The method does not block and return immediately.<br><br>
-	 * 
-	 * It does not create any packaged and temporary as well.
-	 * 
-	 * @param src
-	 * 			The source payloads. 
-	 * @return	
-	 * 			The estimated packed size of payload, 
-	 * 			or -1 if there are error occur or 
-	 * 			there is no archiver for this payload.
-	 * @see #setDefaultArchiver(Archiver);  			
-	 */
-	public long 
-	estimatePackedSize(FoldersPayload src)
-	{
-		return this.estimatePackedSize(src.getRoot());
-	}
-	
-	/**
-	 * Packs this payload to become an archive 
-	 * from the given <code>src</code> payload.<br><br>
-	 * 
-	 * It use the default archiver to pack.<br><br>   
- 	 *
- 	 * <strong>[Convetor Method]</strong>
-	 * It converts from outgoing payloads to packaged payloads.
- 	 *
-	 * @param src
-	 * 			The source payloads.
-	 * @since	
-	 * 			1.0.2 	 
-	 * @throws IOException
-	 * 			any kind of I/O Errors.
-	 */
-	public void 
-	pack(FoldersPayload src) throws IOException
-	{ 
-		this.pack(src, this.archiver);
-	}
-		
-	/**
-	 * Packs this payload to become an archive 
-	 * from the given <code>src</code> payload.<br><br>
-	 * 
-	 * It use the default archiver to pack.<br><br>   
- 	 *
- 	 * <strong>[Convetor Method]</strong>
-	 * It converts from outgoing payloads to packaged payloads.
- 	 *
-	 * @param src
-	 * 			The src of the archive file. It can 
-	 * 			either be a file or directory. 
-	 * 			If latter one, the directory will NOT includes
-	 * 			in the archive.
-	 * @since	
-	 * 			1.0.2 	 
-	 * @throws IOException
-	 * 			any kind of I/O Errors.
-	 */
-	public void 
-	pack(File src) throws IOException
-	{
-		this.pack(src, this.archiver);
-	}
-	
-	/**
-	 * Packs this payload to become an archive 
-	 * from the given <code>src</code> payload.   
- 	 *
- 	 * <strong>[Convetor Method]</strong>
-	 * It converts from outgoing payloads to packaged payloads.
- 	 *
-	 * @param src
-	 * 			The source payloads.
-	 * @param archiver
-	 * 			The archiver to be used to archive the root.
-	 * @since	
-	 * 			1.0.2 	 
-	 * @throws IOException
-	 * 			any kind of I/O Errors.
-	 */
-	public void 
-	pack(FoldersPayload src, Archiver archiver)	throws IOException 
-	{
-		this.pack(src.getRoot(), archiver);
-	}
-	
-	/**
-	 * Packs this payload to become an archive 
-	 * from the given <code>src</code>.   
-	 * 
-	 * @param src
-	 * 			The src of the archive file. It can 
-	 * 			either be a file or directory. 
-	 * 			If latter one, the directory will NOT includes
-	 * 			in the archive.
-	 * @param archiver 	
-	 * 			The archiver to be used to archive the root.
-	 * @since	
-	 * 			1.0.2
-	 * @throws IOException
-	 * 			any kind of I/O Errors. 			
-	 */
-	public void 
-	pack(File src, Archiver archiver) throws IOException
-	{	
-		if (archiver == null)
-			archiver = this.getDefaultArchiver();
-		if (!archiver.compress(src, this.getRoot(), false))
-			throw new IOException("Unable to archive the file: "
-					+ src.getAbsolutePath());
-	}
-	
-	/**
-	 * Unpack the packaged payloads back to a 
-	 * folder-structured payloads set.<br><br>
-	 * 
-	 * It use the default archiver to pack.<br><br> 
-	 * 
-	 * <strong>[Convetor Method]</strong>
-	 * It converts from packaged payloads to outgoing payloads.
-	 * 
-	 * @return
-	 * @throws IOException
-	 * 			if the extraction fails or 
-	 * 			other I/O Errors.
-	 * 
-	 * @see hk.hku.cecid.edi.sfrm.FoldersPayload
-	 */
-	public FoldersPayload 
-	unpack() throws IOException
-	{
-		return this.unpack(this.archiver);
-	}
-		
-	/**
-	 * Unpack the packaged payloads back to a 
-	 * folder-structured payloads set.<br><br>
-	 * 
-	 * <strong>[Convetor Method]</strong>
-	 * It converts from packaged payloads to outgoing payloads.
-	 * 
-	 * @param archiver
-	 * @return
-	 * @throws IOException
-	 * 			if the extraction fails or 
-	 * 			other I/O Errors.
-	 * 
-	 * @see hk.hku.cecid.edi.sfrm.FoldersPayload
-	 */
-	public FoldersPayload 
-	unpack(Archiver archiver) throws IOException
-	{
-		String name = this.partnershipId + 
-					  NamedPayloads.decodeDelimiters + 
-					  this.refMessageId;
-		FoldersPayload payload = new FoldersPayload(
-				name, PayloadsState.PLS_UPLOADING, this.getOwner());				
-		if (!archiver.extract(this.getRoot(), payload.getRoot()))
-			throw new IOException("Unable to extract the file: "
-				+ this.getRoot().getAbsolutePath());
-		return payload;
-	}
-		
+				
 	/**
 	 * Decode the payload root to become some useful information.
 	 */
@@ -361,9 +164,43 @@ public class PackagedPayloads extends NamedPayloads{
 			throw new ArrayIndexOutOfBoundsException(
 					"Invalid Packaged Payloads Format.");		
 		this.partnershipId = (String) tokens.get(0);
-		this.refMessageId = (String) tokens.get(1);		
-	}
 
+		//Added for decoding the packaged payload in the format of partenrship_id$message_id[original_filename].sfrm
+		String suffixToken = (String) tokens.get(1);
+		decodeMessageId(suffixToken);
+		try {
+			decodeSingleFile(suffixToken);
+		} catch (PayloadException e) {
+			// TODO Implement the payload exception related action
+			e.printStackTrace();
+		}
+	}
+	
+	private void decodeMessageId(String token){
+		int startIndex = token.indexOf(filenameStartBracket);
+		if(startIndex == -1){
+			this.refMessageId = token;
+		}else{
+			this.refMessageId = token.substring(0, startIndex);
+		}
+	}
+	
+	private void decodeSingleFile(String token) throws PayloadException{
+		int startIndex = token.indexOf(filenameStartBracket);
+		int endIndex = token.lastIndexOf(filenameEndBracket);
+		
+		//If it didn't have filename enclosing
+		if(startIndex == -1 || endIndex == -1){
+			isPacked = true;
+			filename = "";
+		}else if(startIndex >= 0 && endIndex >= 0 && endIndex > startIndex){
+			isPacked = false;
+			filename = token.substring(startIndex + 1, endIndex);
+		}else{
+			throw new PayloadException("Invalid packaged payload format");
+		}
+	}
+	
 	/**
 	 * 
 	 */
@@ -372,7 +209,32 @@ public class PackagedPayloads extends NamedPayloads{
 	{
 		// TODO: Encode Packaged Payloads
 	}
+	
+	/**
+	 * To create a FoldersPayload object for this payload, create the folder in the file system when needed 
+	 * @param repo owner repository of this folder payload
+	 * @param state state of the payload folder @see PayloadsState
+	 * @param isCreateFolder whether to create the specific folder in the file system
+	 * @return FoldersPayload object
+	 * @throws IOException if isCreateFolder is true and cannot create folder successfully
+	 * @throws PayloadException if isCreateFolder is true and the folder already existing
+	 */
+	public FoldersPayload getFoldersPayload(PayloadsRepository repo, int state, boolean isCreateFolder) throws IOException, PayloadException{
+		String name = this.partnershipId + NamedPayloads.decodeDelimiters + this.refMessageId;
+		FoldersPayload folderPayload = new FoldersPayload(name, PayloadsState.PLS_UPLOADING, repo);
 		
+		if(isCreateFolder == true && folderPayload.getRoot().exists() == true){
+			throw new PayloadException("Payload Folder \"" + folderPayload.getRoot().getCanonicalPath() + "\" already existed");
+		}
+		//Create the payload folder in file system if needed
+		if(isCreateFolder == true){
+			if(folderPayload.getRoot().mkdirs() == false){
+				throw new IOException("Fail on creating the Payload Folder \"" + folderPayload.getRoot().getCanonicalPath() + "\"");
+			}
+		}
+		return folderPayload;
+	}
+	
 	/**
 	 * toString method
 	 */

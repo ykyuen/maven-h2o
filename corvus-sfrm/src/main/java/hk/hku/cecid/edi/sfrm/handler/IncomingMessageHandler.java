@@ -13,38 +13,51 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.FileChannel;
 import java.util.Properties;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
+
+import java.util.List;
+
 import java.sql.Timestamp;
 import java.net.MalformedURLException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
 
 import javax.mail.MessagingException;
 
+import org.apache.commons.io.FileUtils;
+
+
+import hk.hku.cecid.edi.sfrm.spa.SFRMComponent;
 import hk.hku.cecid.edi.sfrm.spa.SFRMException;
 import hk.hku.cecid.edi.sfrm.spa.SFRMLog;
 import hk.hku.cecid.edi.sfrm.spa.SFRMLogUtil;
 import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
 import hk.hku.cecid.edi.sfrm.spa.SFRMProperties;
 
+import hk.hku.cecid.edi.sfrm.pkg.SFRMAcknowledgementBuilder;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMConstant;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMMessage;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMMessageClassifier;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMMessageException;
+import hk.hku.cecid.edi.sfrm.pkg.SFRMAcknowledgementParser;
 
 import hk.hku.cecid.edi.sfrm.dao.SFRMMessageDVO;
+import hk.hku.cecid.edi.sfrm.dao.SFRMMessageSegmentDAO;
 import hk.hku.cecid.edi.sfrm.dao.SFRMPartnershipDVO;
 import hk.hku.cecid.edi.sfrm.dao.SFRMMessageSegmentDVO;
 
 import hk.hku.cecid.edi.sfrm.handler.SFRMMessageHandler;
 import hk.hku.cecid.edi.sfrm.handler.SFRMMessageSegmentHandler;
+import hk.hku.cecid.edi.sfrm.io.ChecksumException;
 
 import hk.hku.cecid.edi.sfrm.com.FoldersPayload;
+import hk.hku.cecid.edi.sfrm.com.PayloadException;
+import hk.hku.cecid.edi.sfrm.com.PayloadsRepository;
 import hk.hku.cecid.edi.sfrm.com.PayloadsState;
 import hk.hku.cecid.edi.sfrm.com.PackagedPayloads;
 
-import hk.hku.cecid.piazza.commons.io.ChecksumException;
+import hk.hku.cecid.piazza.commons.io.FileSystem;
+import hk.hku.cecid.piazza.commons.io.IOHandler;
 import hk.hku.cecid.piazza.commons.dao.DAOException;
-import hk.hku.cecid.piazza.commons.module.Component;
 import hk.hku.cecid.piazza.commons.module.ActiveMonitor;
 import hk.hku.cecid.piazza.commons.module.ActiveThread;
 import hk.hku.cecid.piazza.commons.module.ActiveTaskAdaptor;
@@ -74,7 +87,7 @@ import hk.hku.cecid.piazza.commons.util.StringUtilities;
  * @version 1.0.4 [26/6/2007 - 3/7/2007]
  * @since 	1.0.0
  */
-public class IncomingMessageHandler extends Component {
+public class IncomingMessageHandler extends SFRMComponent {
 		
 	// Singleton Handler.
 	private static IncomingMessageHandler imh = new IncomingMessageHandler();
@@ -133,17 +146,16 @@ public class IncomingMessageHandler extends Component {
 		SFRMPartnershipDVO partnershipDVO = null;
 		try {
 			// Extract the partnership from the message and the partnership handler.
-			partnershipDVO = (SFRMPartnershipDVO) SFRMProcessor
-				.getPartnershipHandler().retreivePartnership(incomingMessage);
+			partnershipDVO = (SFRMPartnershipDVO) getPartnershipHandler().retreivePartnership(incomingMessage);
 			// Check null.
 			if (partnershipDVO == null){
 				String pID = incomingMessage.getPartnershipId();
 				String err = "Missing partnership Information with PID: " + pID;
-				SFRMProcessor.core.log.error(SFRMLog.IMH_CALLER + err);
+				getLogger().error(SFRMLog.IMH_CALLER + err);
 				throw new MalformedURLException(err);					
 			}														
 		} catch (Exception e) {
-			SFRMProcessor.core.log.error(SFRMLog.IMH_CALLER + "Partnership check failed: " + incomingMessage, e);
+			getLogger().error(SFRMLog.IMH_CALLER + "Partnership check failed: " + incomingMessage, e);
 			throw new MalformedURLException("Partnership check failed");
 		}
 		return partnershipDVO;
@@ -165,7 +177,7 @@ public class IncomingMessageHandler extends Component {
 	public boolean 
 	isDuplicateSegment(SFRMMessage incomingMessage) throws DAOException 
 	{
-		return (SFRMProcessor.getMessageSegmentHandler()
+		return (getMessageSegmentHandler()
 				.retrieveMessageSegment(
 					incomingMessage.getMessageID(),
 					SFRMConstant.MSGBOX_IN,
@@ -205,18 +217,14 @@ public class IncomingMessageHandler extends Component {
 		
 		// TODO: 1. Refactoring
 		// TODO: 2. Can we use session instead query db each time?
-		if (mc.isMeta() || mc.isPayload())		
-			msgDVO = SFRMProcessor.getMessageHandler()
+		if (mc.isMeta() || mc.isPayload()){		
+			msgDVO = getMessageHandler()
 				.retrieveMessage(
 					incomingMessage.getMessageID(),
 					SFRMConstant.MSGBOX_IN);
-		else if (mc.isReceipt() || mc.isRecovery())
-			msgDVO = SFRMProcessor.getMessageHandler()
-				.retrieveMessage(
-					incomingMessage.getMessageID(),
-					SFRMConstant.MSGBOX_OUT);
+		}
 		else{
-			SFRMProcessor.core.log.fatal(
+			getLogger().fatal(
 				SFRMLog.IMH_CALLER
 			  +"Segment Type checked in processing message validation.");
 			throw new SFRMMessageException(
@@ -232,10 +240,14 @@ public class IncomingMessageHandler extends Component {
 				 // FIXME: Hot fix for 26/12/2006 Release
 				 status.equals(SFRMConstant.MSGS_PROCESSED)	 ||
 				 status.equals(SFRMConstant.MSGS_UNPACKAGING)||
-				 status.equals(SFRMConstant.MSGS_HANDSHAKING) )
+				 status.equals(SFRMConstant.MSGS_HANDSHAKING)||
+				 // Added status for defining processing 
+				 status.equals(SFRMConstant.MSGS_PRE_SUSPENDED) ||
+				 status.equals(SFRMConstant.MSGS_SUSPENDED)
+				 )
 				return true;
 			else
-				SFRMProcessor.core.log.fatal(
+				getLogger().fatal(
 					  SFRMLog.IMH_CALLER
 				   + "The status of message is not processing."
 				   +" It is "  + msgDVO.getStatus()
@@ -277,8 +289,7 @@ public class IncomingMessageHandler extends Component {
 		throws Exception
 	{
 		// Check whether the payloads has been existed or not. 
-		PackagedPayloads pp = (PackagedPayloads) SFRMProcessor
-			.getIncomingPayloadRepository().createPayloads
+		PackagedPayloads pp = (PackagedPayloads) getIncomingRepository().createPayloads
 				(new Object[]{incomingMessage.getPartnershipId()
 							 ,incomingMessage.getMessageID()}
 				,PayloadsState.PLS_UPLOADING);	
@@ -287,16 +298,13 @@ public class IncomingMessageHandler extends Component {
 			return false;
 		// FIXME: Performance issue : OSManager.
 		// Get how much disk space left from the incoming payload repository.
-		long freespace = SFRMProcessor.getOSManager()
-			.getDiskFreespace(SFRMProcessor
-			.getIncomingPayloadRepository()
-			.getRepositoryPath(), null);
+		long freespace = getOSManager().getCommander().getDiskFreespace(getIncomingRepository().getRepositoryPath());
 		long reqspace  = incomingMessage.getTotalSize() + threshold;
 		// There is enough space, return false.
 		if (freespace > reqspace)
 			return false;			
 		// Log error.
-		SFRMProcessor.core.log.error(
+		getLogger().error(
 			  SFRMLog.IMH_CALLER
 		   + "Free Diskspace not enough : "
 		   +" Remaining "
@@ -316,54 +324,57 @@ public class IncomingMessageHandler extends Component {
 	 * 			The partnership to valid against to.
 	 * @return
 	 * 			The raw SFRM Message.  
-	 * @throws SFRMMessageException  
-	 * @throws UnrecoverableKeyException 
-	 * @throws NoSuchAlgorithmException 
 	 * @since
-	 * 			1.5.0
+	 * 			1.0.0
 	 * @throws Exception
 	 * 			any kind of exceptions.
 	 */
-	public SFRMMessage unpackIncomingMessage(SFRMMessage message, SFRMPartnershipDVO partnershipDVO) 
-		throws SFRMMessageException, NoSuchAlgorithmException, UnrecoverableKeyException {
+	public void unpackIncomingMessage(SFRMMessage message, SFRMPartnershipDVO partnershipDVO) throws SFRMException {
 		
-		String logInfo = " msg id: " + message.getMessageID() 
-						+" and sgt no: " + String.valueOf(message.getSegmentNo());
-
-		KeyStoreManager keyman = SFRMProcessor.getKeyStoreManager();
+		KeyStoreManager keyman = SFRMProcessor.getInstance().getKeyStoreManager();
 		
 		// Encryption enforcement check and decrypt
-		if (partnershipDVO.isInboundEncryptEnforced()) { 
+		if (partnershipDVO.getEncryptAlgorithm() != null) {
 			if (!message.isEncryptedContentType()) {
-				SFRMProcessor.core.log.error(
+				SFRMProcessor.getInstance().getLogger().error(
 					SFRMLog.IMH_CALLER + "Encryption enforcement check failed: " 
 					 + message);
-				throw new SFRMMessageException("Insufficient message security");
+				throw new SFRMException("Insufficient message security");
 			} else {
 				try {
 					message.decrypt(keyman.getX509Certificate(), keyman.getPrivateKey());
-				} catch (SFRMMessageException e) {
-					SFRMProcessor.core.log.error(
+				} catch (SFRMException e) {
+					SFRMProcessor.getInstance().getLogger().error(
 						SFRMLog.IMH_CALLER + "Unable to decrypt " 
 						   + message, e);
 					throw e;
+				} catch (NoSuchAlgorithmException e) {
+					SFRMProcessor.getInstance().getLogger().error(
+							SFRMLog.IMH_CALLER + "Unable to decrypt " 
+							   + message, e);
+					throw new SFRMException(e.getMessage(), e);
+				} catch (UnrecoverableKeyException e) {
+					SFRMProcessor.getInstance().getLogger().error(
+							SFRMLog.IMH_CALLER + "Unable to decrypt " 
+							   + message, e);
+					throw new SFRMException(e.getMessage(), e);
 				}
 			}
 		}
 			
 		// Signing enforcement check and unpack verified signature
-		if (partnershipDVO.isInboundSignEnforced()) {
+		if (partnershipDVO.getSignAlgorithm() != null) {
 			if (!message.isSignedContentType()) {
-				SFRMProcessor.core.log.error(
+				SFRMProcessor.getInstance().getLogger().error(
 					SFRMLog.IMH_CALLER + "Signature enforcement check failed: "
 					   + message);
-				throw new SFRMMessageException("Insufficient message security");
+				throw new SFRMException("Insufficient message security");
 				
 			} else {
 				try {
 					message.verify(partnershipDVO.getVerifyX509Certificate());
-				} catch (SFRMMessageException e) {
-					SFRMProcessor.core.log.error(
+				} catch (SFRMException e) {
+					SFRMProcessor.getInstance().getLogger().error(
 						SFRMLog.IMH_CALLER + "Unable to verify "  
 							+ message, e);
 					throw e;
@@ -373,18 +384,16 @@ public class IncomingMessageHandler extends Component {
 		
 		// Log information
 		try {
-			SFRMProcessor.core.log.info(
-				 SFRMLog.IMH_CALLER 
-			  +  SFRMLog.UNPACK_SGT 
-			  +  logInfo			    
-			  +" with payload size : " 
+			SFRMProcessor.getInstance().getLogger().info(
+				 SFRMLog.IMH_CALLER + SFRMLog.UNPACK_SGT 
+			  + " msg id: " + message.getMessageID() 			    
+			  + " with payload size : " 
 			  + message.getBodyPart().getSize());
 		} catch (MessagingException e) {
-			throw new SFRMMessageException("Unable to get body part size");
+			throw new SFRMException("Unable to get body part size");
 		}
-		  
-		return message;
-	}
+	}		
+	
 	
 	/**
 	 * initalize the <strong>Guard</strong> so that there is <strong>ONLY ONE THREAD</strong>
@@ -400,7 +409,7 @@ public class IncomingMessageHandler extends Component {
 			// Log illegal / duplicated working message at same working time.
 			SFRMLogUtil.log(SFRMLog.IMH_CALLER, SFRMLog.ILLEGAL_SGT,
 				incomingMessage.getMessageID(), incomingMessage.getSegmentNo());
-			SFRMProcessor.core.log.debug(
+			getLogger().debug(
 				this.segmentDoSHandler.getResolvedKey(incomingMessage));
 			return true;
 		}
@@ -461,12 +470,13 @@ public class IncomingMessageHandler extends Component {
 		// constant reference to incomingMessage.
 		final SFRMMessage inputMessage = incomingMessage;
 		// Verified and decrypted SFRM Message (segment).
-		final SFRMMessage rawMessage;
+
 		// Get the classifier. 
 		final SFRMMessageClassifier mc = incomingMessage.getClassifier();
 		// The associated partnership DVO 
 		final SFRMPartnershipDVO pDVO;		
 		
+		SFRMMessage retMessage = null;
 		try{
 			// Log received Information.
 			SFRMLogUtil.log(SFRMLog.IMH_CALLER,	SFRMLog.RECEIVE_SGT, inputMessage.getMessageID(), inputMessage.getSegmentNo());
@@ -480,15 +490,21 @@ public class IncomingMessageHandler extends Component {
 			// 		0.4  - Message Status validation (true if status == PS,HS,PR,ST,UK) 			
 			// ------------------------------------------------------------------------
 
-			// Step 0.0
+			// Step 0.0			
 			if (this.initGuardForSegment (inputMessage)) return null;
 			
 			pDVO 		= this.extractPartnership(inputMessage); 			// Step 0.1
-			rawMessage 	= this.unpackIncomingMessage(inputMessage, pDVO); 	// Step 0.2
+			this.unpackIncomingMessage(inputMessage, pDVO); 	// Step 0.2
 			
 			if (mc.isMeta()) { // Step 0.3
-				this.processHandshakingMessage(inputMessage, params);				
-			} else { // Step 0.4
+				this.processHandshakingMessage(inputMessage, params);
+			}
+			else if (mc.isAcknowledgementRequest()){
+				retMessage = this.processAcknowledgement(inputMessage, pDVO);
+				this.releaseGuardForSegment(inputMessage);
+				return retMessage;
+			}
+			else { // Step 0.4
 				boolean isProc = this.isProcessingMessage(inputMessage);
 				if (!isProc) throw new SFRMMessageException("Message is not processing, ignore segments.");											
 			}										
@@ -500,10 +516,11 @@ public class IncomingMessageHandler extends Component {
 			//		Since hacker may try to get the receipt by pretending a segments
 			//		(may be intercept through HTTP monitor). So it is better to  
 			//		verify the signature before allowing the receipt can be re-send. 
-			// ------------------------------------------------------------------------	
+			// ------------------------------------------------------------------------
+			//FIXME: Whether it need to process the duplicate message now, when using sync sfrm message  
 			if (mc.isPayload()){
 				boolean isDuplicate = this.isDuplicateSegment(inputMessage);
-				if (isDuplicate) return this.processDuplicateSegment(inputMessage, params);
+				if(isDuplicate) return null;
 			}
 			
 			// ------------------------------------------------------------------------
@@ -527,30 +544,26 @@ public class IncomingMessageHandler extends Component {
 							
 							if (mc.isPayload()){								
 								// Write the segment into pages/disk.
-								owner.processSegmentMessage	(inputMessage, rawMessage, params);
-							} else if (mc.isReceipt()){ 															
-								// Update the associated message/segment to final state.
-								owner.processReceiptMessage	(rawMessage, pDVO, params);
-							} else if (mc.isMeta()){								
-								// pre-allocate the payload.
-								owner.processMetaMessage	(rawMessage, pDVO, params);
-							} else if (mc.isRecovery()){								
-								// Repend the payload segment.
-								owner.processRecoveryMessage(rawMessage, params);
+								owner.processSegmentMessage	(inputMessage, params);
 							}
+							else if (mc.isMeta()){								
+								// pre-allocate the payload.
+								owner.processMetaMessage	(inputMessage, pDVO, params);
+							}
+							
 						} finally {
 							// If everything goes fine, the guard is released by this working thread
 							// and the process of this message is considered as completed.
 							owner.releaseGuardForSegment(inputMessage);
 						}
 						// For DEBUG Purpose only
-						SFRMProcessor.core.log.debug(SFRMLog.IMH_CALLER + "Message info" + inputMessage);						
+						getLogger().debug(SFRMLog.IMH_CALLER + "Message info" + inputMessage);						
 					}
 					
 					public void 
 					onFailure(Throwable e) 
 					{
-						SFRMProcessor.core.log.error(SFRMLog.IMH_CALLER + "Error", e); 
+						getLogger().error(SFRMLog.IMH_CALLER + "Error", e); 
 					}				
 				});
 				
@@ -565,350 +578,13 @@ public class IncomingMessageHandler extends Component {
 			this.releaseGuardForSegment(inputMessage);
 			throw ex; // Re-throw;
 		}
-		return null;
-	}
-	
-	// ------------------------------------------------------------------------
-	// Receipt Related Method
-	// ------------------------------------------------------------------------
-	
-	/**
-	 * Create a receipt according to the <code>rawMessage</code> only when necessary.<br><br>
-	 * 
-	 * The receipt is a empty content SFRM Message that segment type can be 
-	 * <strong>RECEIPT</strong>, 
-	 * <strong>LAST_RECEIPT</strong> and 
-	 * <strong>RECOVERY</strong>.<br><br>
-	 * 
-	 * For the first two type, we call them 
-	 * <strong>POSITIVE ACKNOWLEDGMENT</strong>.<br>
-	 * For the last one, we call them 
-	 * <strong>NEGATIVE ACKNOWLEDGMENT</strong> because 
-	 * the sender will attempt to send that segment part again
-	 * to the receiver and let receiver try to process again.
-	 * 
-	 * @param inputMessage
-	 * 			The incoming SFRM Message for creating receipt.
-	 * @param isPositive
-	 * 			whether the receipt is positive or not.
-	 * @param isLastReceipt
-	 * 			if the <code>isPositive</code> is set to true, 
-	 * 			the flag indicate whether it is a last receipt or not. 
-	 * @since 1.0.1
-	 * @throws DAOException
-	 * 			throw if the receipt message segment record can not be created.
-	 */
-	public SFRMMessageSegmentDVO 
-	createReceiptIfNecessary(
-			SFRMMessage inputMessage,
-			boolean 	isPositive, 
-			boolean 	isLastReceipt) throws 
-			DAOException, 
-			SFRMMessageException 
-	{	
-		// Here we has used the trick that we don't want create
-		// a new message object because we only need to create the 
-		// message segment record here. so we keep using the 
-		// raw message and changes some necessary information
-		// , then save it to the database. Rollback to original
-		// status is required for preserving the raw message 
-		// original header.
-		
-		// Fill up the necessary information for the receipt
-		String oriType	= inputMessage.getSegmentType();
-		String type 	= null;
-		if (isPositive && isLastReceipt){
-			type = SFRMConstant.MSGT_LAST_RECEIPT;
-		} else if (isPositive && !isLastReceipt){
-			type = SFRMConstant.MSGT_RECEIPT;
-		} else if (!isPositive){
-			type = SFRMConstant.MSGT_RECOVERY;
-		} 		
-		
-		inputMessage.setSegmentType(type);						
-		// Create the message segment record.
-		SFRMMessageSegmentHandler msHandle  = SFRMProcessor
-			.getMessageSegmentHandler();
-		// Find if there is any receipt created already.
-		SFRMMessageSegmentDVO segReceiptDVO = 
-			msHandle.retrieveMessageSegment(
-				inputMessage, SFRMConstant.MSGBOX_OUT);
-		
-		if (segReceiptDVO != null){
-			segReceiptDVO.setStatus(SFRMConstant.MSGS_PENDING);
-			msHandle.getDAOInstance().persist(segReceiptDVO);
-		}
-		else{
-			msHandle.createMessageSegmentBySFRMMessage(inputMessage,
-				SFRMConstant.MSGBOX_OUT, SFRMConstant.MSGS_PENDING);
-		}			 
-		// Rollback the changes.
-		inputMessage.setSegmentType(oriType);
-		return segReceiptDVO;
-	}
-
-	/**
-	 * 
-	 * @param inputMessage
-	 * @param params
-	 * @return
-	 * 
-	 * @since	
-	 * 			1.0.2
-	 * @throws 
-	 */
-	public SFRMMessage 
-	processReceiptAction(
-			SFRMMessage 	inputMessage,
-			final Object[] 	params) throws 
-			Exception 
-	{
-		// --------------------------------------------------------------------
-		// Pre	 : local Variable declaration
-        // --------------------------------------------------------------------
-		String mID = inputMessage.getMessageID();
-		
-		// Get the message handle.
-		SFRMMessageSegmentHandler msHandle = SFRMProcessor
-			.getMessageSegmentHandler();
-		SFRMMessageHandler mHandle = SFRMProcessor
-			.getMessageHandler();
-		SFRMMessageDVO msgDVO = (SFRMMessageDVO) 
-			mHandle.retrieveMessage(mID, SFRMConstant.MSGBOX_IN);
-		
-	    if (msgDVO != null){
-	        int numOfSegment = msHandle.retrieveMessageSegmentCount(
-	        	mID,
-				SFRMConstant.MSGBOX_IN, 
-				SFRMConstant.MSGT_PAYLOAD,
-				SFRMConstant.WILDCARD);
-	        
-	        // Get how many segments are received.
-	        // If we have received all,
-	        // set the status of main message to pending for other proces.
-	        if (numOfSegment == msgDVO.getTotalSegment()){
-	        	SFRMProcessor.core.log.info(
-	        		  SFRMLog.IMH_CALLER
-		           +  SFRMLog.RECEIVE_ALL
-	        	   +" msg id: " 
-	        	   +  inputMessage.getMessageID());
-	        	
-	        	// Create an payload proxy object.
-	        	PackagedPayloads pp = (PackagedPayloads) SFRMProcessor
-					.getIncomingPayloadRepository().createPayloads(
-						new Object[]{ inputMessage.getPartnershipId(), mID }
-					   ,PayloadsState.PLS_UPLOADING);
-	        	
-	        	if (!pp.setToPending())
-	        		SFRMProcessor.core.log.error(
-	        			"Can not rename the payload : " 
-	        		   + pp.getOriginalRootname() 
-	        		   +" to PENDING."); 
-	        	
-	        	this.createReceiptIfNecessary(inputMessage, true, true);
-	        	return null;   
-	        }	        
-	    }
-	    this.createReceiptIfNecessary(inputMessage, true, false);
-	    return null;
+		return retMessage;
 	}
 
 	// ------------------------------------------------------------------------
 	// Message Processing Method
 	// ------------------------------------------------------------------------
-	
-	/**
-	 * Process all message that are received once already.<br><br>
-	 * 
-	 * [SINGLE-THREADED].
-	 * 
-	 * The system retreives the receipt from the database and 
-	 * set the status to <strong>MSGS_PENDING</strong> again. 
-	 * so the receipt will send again thru the outbound.<br><br> 
-	 * 
-	 * If the receipt does not exist in the database. This method
-	 * basically do nothing because we consider the receipt 
-	 * will be generated by some working thread (i.e. The receipt 
-	 * hasn't been sent yet).
-	 * 
-	 * @param rawMessage
-	 * 			  The RAW SFRM Message. (not yet unsign and de-crypt)
-	 * @param params
-	 * 			  RESERVED.
-	 * @return
-	 * 			  RESERVED. 
-	 * @since	
-	 * 			  1.0.1 
-	 */
-	public SFRMMessage 
-	processDuplicateSegment(
-			SFRMMessage 		rawMessage,
-			final Object[] 		params) throws 
-			DAOException, 
-			SFRMMessageException 
-	{
-		// --------------------------------------------------------------------
-		// Pre	 : local Variable declaration
-        // --------------------------------------------------------------------
-		String mID 	= rawMessage.getMessageID();
-		int	sNo 	= rawMessage.getSegmentNo();
-		
-		String logInfo = " msg id: "       + mID
-						+" and sgt no: "   + sNo
-						+" and sgt type: " + rawMessage.getSegmentType(); 
-		
-		// Log information.
-        SFRMProcessor.core.log.info(SFRMLog.IMH_CALLER + SFRMLog.RECEIVE_DUP + logInfo);
-        // --------------------------------------------------------------------
-		// Step 0: Get a acknowledgment message and re-send back to sender. 
-        // -------------------------------------------------------------------- 
-        SFRMMessageSegmentHandler msHandle = 
-        	SFRMProcessor.getMessageSegmentHandler();
-        SFRMMessageSegmentDVO segReceiptDVO = 
-        	msHandle.retrieveMessageSegment(mID, SFRMConstant.MSGBOX_OUT,
-        									sNo, SFRMConstant.MSGT_RECEIPT);
-        
-        // If the receipt for this segment is null, we consider it is         
-        // processing by some other thread to generate the async ack 
-        // FIXME: any other case here?
-        if (segReceiptDVO != null){
-        	segReceiptDVO.setStatus(SFRMConstant.MSGS_PENDING);
-        	msHandle.getDAOInstance().persist(segReceiptDVO);
-        } else{
-        	SFRMProcessor.core.log.warn(
-        		  SFRMLog.IMH_CALLER
-        	   + "Receipt does not found for duplicated segment: "
-        	   +  logInfo);
-        }
-		return null;
-	}
-	
-	/**
-	 * Process all receipt-typed message.<br><br>
-	 * 
-	 * [MULTI-THREADED].<br>
-	 * 
-	 * What the method has done:<br>
-	 * <ul>
-	 * 	<li>Retrieve the corresponding <strong>META / PAYLOAD</strong>
-	 * 		segment record from the DB from the receipt. </li> 
-	 * 	<li>Update the status of this record to PROCESSED.</li>
-	 * 	<li>If it is the last receipt,
-	 * 		<ul>
-	 * 			<li>Retrieve the Message record from the db.</li>
-	 * 			<li>Update the Message record to PROCESSED.</li>
-	 * 			<li>Get the payload cache from the outgoing segment
-	 * 				repository and session from session manager,
-	 * 				then delete it.</li>
-	 * 		</ul>
-	 * 	</li>	
-	 * </ul> 
-	 * 
-	 * @param inputMessage
-	 * 			The incoming SFRM Message (unsigned and decrpyted)
-	 * @param partnershipDVO
-	 * 			The partnership DVO for this incoming message. 			
-	 * @param params
-	 * 			RESERVED. 
-	 * @return
-	 * @since	
-	 * 			1.0.1
-	 * @throws DAOException
-	 * 			any kind of DB I/O Errors. 
-	 */
-	public SFRMMessage 
-	processReceiptMessage(
-			SFRMMessage 		inputMessage, 
-			SFRMPartnershipDVO 	partnershipDVO, 
-			final Object[] 		params)	throws 
-			DAOException
-	{		
-        // --------------------------------------------------------------------
-		// Pre	 : local Variable declaration
-        // -------------------------------------------------------------------- 
-		String 	mID = inputMessage.getMessageID();
-		int		sNo	= inputMessage.getSegmentNo();
-        // --------------------------------------------------------------------
-		// Step 0: Retrieve the message segment record in the database.
-        // --------------------------------------------------------------------		
-        SFRMMessageSegmentHandler msHandle = SFRMProcessor
-			.getMessageSegmentHandler();
-        SFRMMessageSegmentDVO segDVO = msHandle
-        	.retrieveMessageSegment(mID, SFRMConstant.MSGBOX_OUT,
-        							sNo, SFRMConstant.MSGT_PAYLOAD);
-        
-		if (segDVO == null){
-        	// Log error information.
-        	SFRMProcessor.core.log.error(
-        		  SFRMLog.IMH_CALLER
-        	   + "Missing outgoing segment record with" 
-        	   +" msg id: " +  mID 
-       		   +" and sgt no: " +  sNo
-       		   +" for receipt confirmation.");
-        	throw new NullPointerException(
-				"Missing Segment record for receipt confirmation.");
-        }        
-        // --------------------------------------------------------------------
-        // Step 1: Set the status of this message segment to processed 
-        // 		   because the receipt has been received.
-        // --------------------------------------------------------------------
-		Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-		
-        segDVO.setStatus(SFRMConstant.MSGS_PROCESSED);
-        segDVO.setCompletedTimestamp(currentTime);        
-        msHandle.getDAOInstance().persist(segDVO);
-        
-        // --------------------------------------------------------------------        
-        // Step 2: Check whether the message segment is last receipt, if 
-        //         yes, update the message status to PROCESSED and 
-        //		   delete the outbound packaged payload, and all sesssions.
-        // --------------------------------------------------------------------                      
-        if (inputMessage.getIsLastReceipt()){
-            SFRMMessageHandler mHandle = SFRMProcessor.getMessageHandler();
-        	// Log information.
-        	SFRMProcessor.core.log.info(
-        		 SFRMLog.IMH_CALLER 
-        	   + SFRMLog.SEND_ALL
-        	   + "********** CONVERSION DONE ********* with msg id: " 
-        	   + mID); 		
-        	
-        	// Retrieve from the cache / DB.
-        	SFRMMessageDVO msgDVO = mHandle.retrieveMessage(mID, SFRMConstant.MSGBOX_OUT);        	
-        	        	        	        	
-        	// Only update the message if the status is not processed.
-        	if (!msgDVO.getStatus().equals(SFRMConstant.MSGS_PROCESSED)){        	        	
-        		 msgDVO.setStatus			 (SFRMConstant.MSGS_PROCESSED);
-        		 msgDVO.setStatusDescription (SFRMConstant.MSGSDESC_PROCESSED);
-        		 msgDVO.setCompletedTimestamp(new Timestamp(System.currentTimeMillis()));
-        		 mHandle.updateMessage(msgDVO);
-        		 // Clear the message & partnership cache.
-        		 mHandle.clearCache(msgDVO);
-        		 SFRMProcessor.getPartnershipHandler().clearCache(
-        			msgDVO.getPartnershipId(), 
-        			msgDVO.getMessageId());
-        	}        	
-        	
-        	// Prevent any Mapped Memory region that hold the payload.
-    		// System.gc();
-    		
-        	// Clear the packaged payload.
-        	PackagedPayloads pp = (PackagedPayloads) 
-        		SFRMProcessor.getPackagedPayloadRepository()
-        		.getPayload(new Object[]{msgDVO.getPartnershipId(),
-        								 mID},
-        					PayloadsState.PLS_PENDING);        	
-        	if (pp != null)
-        		pp.clearPayloadCache();
-        	
-        	//Clear the folder payload
-        	FoldersPayload dir = (FoldersPayload) SFRMProcessor.getOutgoingPayloadRepository().getPayload(new Object[]{inputMessage.getPartnershipId(), mID}, PayloadsState.PLS_PROCESSED);
-        	if(dir != null){
-        		dir.clearPayloadCache();
-        	}
-        	
-        }        
-        return null;
-	}	
+
 		
 	/**
 	 * Process handshaking for a new message.<br><br>
@@ -954,7 +630,7 @@ public class IncomingMessageHandler extends Component {
 						+" and total size: " + rawMessage.getTotalSize();
 		
 		// Log information
-		SFRMProcessor.core.log.info(SFRMLog.IMH_CALLER + SFRMLog.RECEIVE_HDSK + logInfo);		
+		getLogger().info(SFRMLog.IMH_CALLER + SFRMLog.RECEIVE_HDSK + logInfo);		
 		// -----------------------------------------------------------------
 		// Step 0: create the sfrm message record.
 		// -----------------------------------------------------------------
@@ -970,19 +646,20 @@ public class IncomingMessageHandler extends Component {
 		// still identical to the one in the (R) database. like 
 		// signing and encryption setting.
 		
-        SFRMMessageHandler mHandle = SFRMProcessor.getMessageHandler();
+        SFRMMessageHandler mHandle = getMessageHandler();
         SFRMMessageDVO msgDVO = mHandle.retrieveMessage(mID, SFRMConstant.MSGBOX_IN);        
         
         // Only remove message record when the message is still handshaking.
         if (msgDVO != null &&  msgDVO.getStatus().equals(SFRMConstant.MSGS_HANDSHAKING)){
-        	SFRMProcessor.core.log.info(
+        	getLogger().info(
         		  SFRMLog.IMH_CALLER
         	   + "Removing existing record with"
         	   +  logInfo);
         	mHandle.removeMessage(msgDVO);
         }
         else 
-        if (msgDVO != null && !msgDVO.getStatus().equals(SFRMConstant.MSGS_HANDSHAKING)){	
+        if (msgDVO != null && !msgDVO.getStatus().equals(SFRMConstant.MSGS_HANDSHAKING)){
+        	getLogger().debug("IncomingMessageHandler msg status from DB: " + msgDVO.getStatus());
         	throw new SFRMMessageException(
 				"Message is not handshaking, invalid META segment received.");
         }        
@@ -1021,14 +698,14 @@ public class IncomingMessageHandler extends Component {
 				   +  MPSize);		
 							
         } catch(Exception e){
-        	SFRMProcessor.core.log.error(SFRMLog.IMH_CALLER + SFRMLog.FAIL_HDSK + "Reason: ", e); 
+        	getLogger().error(SFRMLog.IMH_CALLER + SFRMLog.FAIL_HDSK + "Reason: ", e); 
         	// Turn the message to fail.
 			msgDVO.setStatus			(SFRMConstant.MSGS_DELIVERY_FAILURE);
 			msgDVO.setCompletedTimestamp(new Timestamp(System.currentTimeMillis()));
 			msgDVO.setStatusDescription	(e.toString());
 			mHandle.updateMessage(msgDVO);
 			mHandle.clearCache(msgDVO);
-			SFRMProcessor.getPartnershipHandler().clearCache(msgDVO.getPartnershipId(), mID);
+			getPartnershipHandler().clearCache(msgDVO.getPartnershipId(), mID);
 			throw e;
         }				
 		return null;
@@ -1071,29 +748,27 @@ public class IncomingMessageHandler extends Component {
 		// Step 0: create the pre-allocated files for on the fly recv mode.
 		// -----------------------------------------------------------------
 		PackagedPayloads pp 		= null;
-		SFRMMessageHandler mHandle 	= SFRMProcessor.getMessageHandler();
+		SFRMMessageHandler mHandle 	= getMessageHandler();
 		SFRMMessageDVO msgDVO		= null;
 		try{
-			pp = (PackagedPayloads) SFRMProcessor
-			 	.getIncomingPayloadRepository()
+			pp = (PackagedPayloads) getIncomingRepository()
     			.createPayloads(new Object[]{inputMessage.getPartnershipId(), mID},
     							PayloadsState.PLS_UPLOADING); 			
 			File payload = pp.getRoot();
 			
-			SFRMProcessor.getOSManager().createDummyFile(
-				payload.getAbsolutePath(),
-				inputMessage.getTotalSize(), 
-				null);
+			getOSManager().getCommander().createDummyFile(payload.getAbsolutePath(), inputMessage.getTotalSize());
 			
 			msgDVO = mHandle.retrieveMessage(inputMessage.getMessageID(), SFRMConstant.MSGBOX_IN);
 			msgDVO.setStatus(SFRMConstant.MSGS_PROCESSING);
+			msgDVO.setStatusDescription(SFRMConstant.getStatusDescription(SFRMConstant.MSGS_PROCESSING));
+			msgDVO.setProceedTimestamp(new Timestamp(System.currentTimeMillis()));
 			mHandle.updateMessage(msgDVO);		
 			
 		}catch(Exception ioe){
 	    	// --------------------------------------------------------------------
 			// Alternative Path: Fail to create the dummy, set the message to DF			
 			// --------------------------------------------------------------------
-			SFRMProcessor.core.log.error(
+			getLogger().error(
 				SFRMLog.IMH_CALLER 
 			  + SFRMLog.RECEIVE_FAIL 
 			  + "msg id: " 
@@ -1110,10 +785,10 @@ public class IncomingMessageHandler extends Component {
 					pp.clearPayloadCache();
 				
 				mHandle.clearCache(msgDVO);
-				SFRMProcessor.getPartnershipHandler().clearCache(msgDVO.getPartnershipId(), mID);				
+				getPartnershipHandler().clearCache(msgDVO.getPartnershipId(), mID);				
 			}
 			catch(DAOException daoe){
-				SFRMProcessor.core.log.fatal(
+				getLogger().fatal(
 					  SFRMLog.IMH_CALLER
 				   + "Handshaking Mark failure for msg id: "
 				   +  mID);
@@ -1139,17 +814,10 @@ public class IncomingMessageHandler extends Component {
 	 * 
 	 * @return A SFRM message for response message.
 	 */
-	public SFRMMessage 
-	processSegmentMessage(
-			SFRMMessage 	inputMessage,
-			SFRMMessage 	rawMessage, 
-			final Object[] 	params) throws 
-			IOException,
-			DAOException, 
-			SFRMMessageException, 
-			Exception 
-	{
-		// TODO: Tuning 
+	public SFRMMessage processSegmentMessage(SFRMMessage rawMessage, final Object[] params) throws 
+		IOException, DAOException, SFRMMessageException, Exception {
+
+	// TODO: Tuning 
 		String mId	= rawMessage.getMessageID();
 		String pId	= rawMessage.getPartnershipId();
 		String logInfo = "";
@@ -1157,7 +825,7 @@ public class IncomingMessageHandler extends Component {
 	        // --------------------------------------------------------------------
 			// Step 0: Create the physical payload into incoming segment repostory.
 	        // --------------------------------------------------------------------
-			String path = SFRMProcessor.getIncomingPayloadRepository().getRepositoryPath() + 
+			String path = getIncomingRepository().getRepositoryPath() + 
 							File.separator + "~" + 
 							pId + "$" + 
 							mId + ".sfrm";
@@ -1167,13 +835,15 @@ public class IncomingMessageHandler extends Component {
 	        // Step 1: CRC Check
 	        // 		   if CRC check fail, return immediately with
 	        //		   the negative receipt (recovery request).
-	        // --------------------------------------------------------------------
-
+	        // --------------------------------------------------------------------	              
+			String micValue = rawMessage.digest();			
+			
+	        getLogger().info("Content Type: " + rawMessage.getBodyPart().getContentType());			
+	        
 			logInfo	= " msg id: " + mId  + " and sgt no: " + rawMessage.getSegmentNo();
-
-	        String micValue = inputMessage.digest();
+			
 			if (!micValue.equalsIgnoreCase(rawMessage.getMicValue())){
-				SFRMProcessor.core.log.info(
+				getLogger().info(
 					  SFRMLog.IMH_CALLER 
 				   +  SFRMLog.FAIL_CRC
 				   +  logInfo 
@@ -1182,14 +852,17 @@ public class IncomingMessageHandler extends Component {
 				   +" Result MIC: " + micValue);
 				throw new ChecksumException("Invalid CRC Value.");
 			}else {
-				SFRMProcessor.core.log.info(
+				getLogger().info(
 					  SFRMLog.IMH_CALLER
 				   +  SFRMLog.SUCCESS_CRC
 				   +  logInfo);
 			}
 			
-			OSManager osm = SFRMProcessor.getOSManager();
-			if(osm.getOSName().equalsIgnoreCase("windows")){			
+			//Fix for the exception thrown from the windows OS for using NIO approach
+			
+			OSManager osm = SFRMProcessor.getInstance().getOSManager();
+			
+			if (osm.getCommander().getOSName().equals("WINDOWS")){	
 		        java.io.FileOutputStream fos = new java.io.FileOutputStream(payload, true);
 		        FileChannel fc = fos.getChannel();
 		        long offset = rawMessage.getSegmentOffset();
@@ -1202,7 +875,7 @@ public class IncomingMessageHandler extends Component {
 		        fos = null;
 		        fc = null;
 		        rbc = null;
-			}else{
+			} else {
 				RandomAccessFile raf = new RandomAccessFile(payload, "rw");
 				FileChannel fc 		 = raf.getChannel();		
 				long offset = rawMessage.getSegmentOffset();
@@ -1223,85 +896,245 @@ public class IncomingMessageHandler extends Component {
 		        mbb = null;         
 			}
 	        
-			/*
-	        SFRMProcessor.core.log.info(" MEM   : " + Runtime.getRuntime().totalMemory());
-	        System.gc();
-	        System.runFinalization();
-	        SFRMProcessor.core.log.info(" MEM GC: " + Runtime.getRuntime().totalMemory());
-	        */
-	        
 			// Step 1: Create the message segment record in the database.
 	        SFRMMessageSegmentHandler msHandle = 
-	        	SFRMProcessor.getMessageSegmentHandler();
+	        	getMessageSegmentHandler();
 	        // Create a new message segment record.
-			msHandle.createMessageSegmentBySFRMMessage(
-				rawMessage,
-				SFRMConstant.MSGBOX_IN, 
-				SFRMConstant.MSGS_PROCESSING);		       
-	
-			// --------------------------------------------------------------------
-			// Step 2: Retrieve the main message record
-			//		   check whether all segment has been done.
-			//		   also process how the receipt look like.
-	        // --------------------------------------------------------------------	
-			this.processReceiptAction(rawMessage, null);
+	        msHandle.createMessageSegmentBySFRMMessage(
+					rawMessage,
+					SFRMConstant.MSGBOX_IN, 
+					SFRMConstant.MSGS_DELIVERED);	
 		}
 		catch(Exception e){
 			// Create Recovery Message.
-			SFRMProcessor.core.log.error(SFRMLog.IMH_CALLER + SFRMLog.RECEIVE_FAIL + logInfo, e);
-			this.createReceiptIfNecessary(inputMessage, false, false);
+			getLogger().error(SFRMLog.IMH_CALLER + SFRMLog.RECEIVE_FAIL + logInfo, e);
+			SFRMMessageSegmentHandler msHandle = 
+	        	getMessageSegmentHandler();
+			msHandle.createMessageSegmentBySFRMMessage(
+					rawMessage,
+					SFRMConstant.MSGBOX_IN, 
+					SFRMConstant.MSGS_DELIVERY_FAILURE);
 		}
         return null;		
 	}
 	
+	public SFRMMessage processAcknowledgement(SFRMMessage msg, SFRMPartnershipDVO pDVO) throws Exception{
+		String logInfo	= " msg id: " + msg.getMessageID();
+		
+		String micValue = msg.digest();			
+		
+		if (!micValue.equalsIgnoreCase(msg.getMicValue())){
+			getLogger().info(SFRMLog.IMH_CALLER + SFRMLog.FAIL_CRC
+			   + logInfo +" Expected MIC: " + msg.getMicValue() +" Result MIC: " + micValue);
+			throw new ChecksumException("Invalid CRC Value.");
+		} else {
+			getLogger().info(SFRMLog.IMH_CALLER + SFRMLog.SUCCESS_CRC
+			   + logInfo);
+		}
+				
+		
+		//Get the acknowledgement content
+		String requestContent = new String(IOHandler.readBytes(msg.getContentStream()));
+		
+		SFRMMessageDVO mDVO = this.getMessageHandler().retrieveMessage(msg.getMessageID(), SFRMConstant.MSGBOX_IN);
+		//Walk through the XML content
+		SFRMAcknowledgementParser parser = new SFRMAcknowledgementParser(requestContent);
+		//Get a message to deal with
+		List<String> messageIDs = parser.getMessagesIDs();
+		if(messageIDs.size() != 1){
+			throw new Exception("Acknowledgement request should contains only one message information");
+		}
+		String messageId = messageIDs.get(0);
+		String messageStatus = parser.getMessageStatus(messageId);
+				
+		String responseContent = "";
+		
+		//To dispatch the task base on the message status
+		if(messageStatus.equals(SFRMConstant.MSGS_PROCESSING) || messageStatus.equals(SFRMConstant.MSGS_SEGMENTING)){
+			responseContent = processPRAck(mDVO, parser);
+		}else if(messageStatus.equals(SFRMConstant.MSGS_PRE_DELIVERY_FAILED)){
+			responseContent = processPDFAck(mDVO);
+		}else if(messageStatus.equals(SFRMConstant.MSGS_PRE_PROCESSED)){
+			if(!mDVO.getStatus().equals(SFRMConstant.MSGS_PROCESSED)){
+				final String pId = mDVO.getPartnershipId();
+				final String mId = mDVO.getMessageId();
+				final String filename = mDVO.getFilename();
+				completePayload(mId, pId, filename);
+			}
+			responseContent = processPPSAck(mDVO);
+		}else if(messageStatus.equals(SFRMConstant.MSGS_PRE_SUSPENDED)){
+			responseContent = processPSDAck(mDVO);
+		}else if(messageStatus.equals(SFRMConstant.MSGS_PRE_RESUME)){
+			responseContent = processPRSAck(mDVO);
+		}else{
+			responseContent = "<messages></messages>";
+		}
+		
+		SFRMMessage retMessage = SFRMMessageFactory
+					.getInstance()
+					.createAcknowledgement(mDVO, pDVO, SFRMConstant.MSGT_ACK_RESPONSE, responseContent);
+								
+		return retMessage;		
+	}
+	
 	/**
-	 * Process all recovery message.<br><br>
-	 * 
-	 * [MULTI-THREADED].<br><br>
-	 * 
-	 * @param rawMessage
-	 * 			The unpacked SFRM Message. (i.e. no sign and encrypt here)
-	 * @param params
-	 * 			RESERVED
-	 * @return
-	 * @throws DAOException
+	 * Process the acknowledgement request with PR status
+	 * @param messageId message id
+	 * @param parser parser that content the acknowledgement request parsing
+	 * @return the acknowledgement response content
+	 * @throws DAOException if anything fail on database operation
 	 */
-	public SFRMMessage 
-	processRecoveryMessage(
-			SFRMMessage 	rawMessage,
-			final Object[] 	params) throws 
-			DAOException 
-	{
-		// ------------------------------------------------------------
-		// Step 0: Retrieve the message segment record in the database.
-		// ------------------------------------------------------------		
-        SFRMMessageSegmentHandler msHandle = 
-        	SFRMProcessor.getMessageSegmentHandler();
-        SFRMMessageSegmentDVO segDVO = msHandle
-        	.retrieveMessageSegment(
-        		rawMessage.getMessageID(), 
-        		SFRMConstant.MSGBOX_OUT, 
-        		rawMessage.getSegmentNo(), 
-        		SFRMConstant.MSGT_PAYLOAD);
-        
-        if (segDVO == null){
-        	SFRMProcessor.core.log.error(
-        		  SFRMLog.IMH_CALLER 
-        	   + "Missing outgoing segment record with message id: " 
-        	   +  rawMessage.getMessageID() 
-       		   +" and segment no: " 
-       		   +  rawMessage.getSegmentNo() 
-       		   +" for receipt confirmation.");
-        	throw new NullPointerException(
-				"Missing Segment record for receipt confirmation.");
-        }
-		// ----------------------------------------------------------------
-        // Step 1: Set the status of this message segment to PENDING 
-        // 		   because the on-demand recovey request has been received.
-		// ----------------------------------------------------------------
-        segDVO.setStatus(SFRMConstant.MSGS_PENDING);
-        msHandle.getDAOInstance().persist(segDVO);
-        return null;
+	public String processPRAck(SFRMMessageDVO mDVO, SFRMAcknowledgementParser parser) throws DAOException{
+		SFRMMessageSegmentHandler msHandler = this.getMessageSegmentHandler();
+		SFRMAcknowledgementBuilder ackBuilder = new SFRMAcknowledgementBuilder();
+		SFRMMessageSegmentDAO msDAO = (SFRMMessageSegmentDAO) msHandler.getDAOInstance();
+		List<Integer> segmentNums = parser.getMessageSegmentNums(mDVO.getMessageId());
+		//Build a response acknowledgement XML content
+		ackBuilder.setMessage(mDVO.getMessageId(), mDVO.getStatus());
+		
+		if(segmentNums.size() > 0){
+			//Query the DB to get a list of message segment for specific message
+			List segDVOs = msHandler.retrieveMessages(mDVO.getMessageId(), SFRMConstant.MSGBOX_IN, SFRMConstant.MSGT_PAYLOAD, segmentNums);
+			for(int i=0 ; segDVOs.size() > i ; i++){
+				SFRMMessageSegmentDVO msDVO = (SFRMMessageSegmentDVO) segDVOs.get(i);
+				//If the local message segment status is DL, update the local segment status to PS, and response it with PS
+				if(msDVO.getStatus().equals(SFRMConstant.MSGS_DELIVERED)){
+					//Update local segment status to PS
+					msDVO.setStatus(SFRMConstant.MSGS_PROCESSED);
+					msDVO.setCompletedTimestamp(new Timestamp(System.currentTimeMillis()));
+					if(!msDAO.persist(msDVO)){
+						throw new DAOException("Error when updating the message segment");
+					}
+					//Response this message segment status to PS
+					ackBuilder.setSegment(mDVO.getMessageId(), msDVO.getSegmentNo(), SFRMConstant.MSGS_PROCESSED);
+					
+				//If the local message segment status is DF, remove the local segment in DB, and response it with DF
+				} else if(msDVO.getStatus().equals(SFRMConstant.MSGS_DELIVERY_FAILURE)){
+					//Remove the local message segment in DB
+					if(!msDAO.remove(msDVO)){
+						throw new DAOException("Error when removing the message segment");
+					}
+					//Response this message segment status to DF
+					ackBuilder.setSegment(mDVO.getMessageId(), msDVO.getSegmentNo(), SFRMConstant.MSGS_DELIVERY_FAILURE);
+				//If local message segment status is another, just response with the current status
+				}else{
+					ackBuilder.setSegment(mDVO.getMessageId(), msDVO.getSegmentNo(), msDVO.getStatus());
+				}
+			}	
+		}
+
+		return ackBuilder.toString();
+	}
+	
+	
+	/**
+	 * Process the acknowledgement with PDF status
+	 * @param messageId message ID
+	 * @return the acknowledgement response content
+	 * @throws DAOException if anything fail on database operation
+	 */
+	public String processPDFAck(SFRMMessageDVO mDVO) throws DAOException{
+		getLogger().debug("Message PDF Ack received");
+		return changeAckStaus(mDVO, SFRMConstant.MSGS_DELIVERY_FAILURE);
+	}
+	
+	/**
+	 * Process the acknowledgement with PPS status
+	 * @param messageId message ID
+	 * @return the acknowledgement response content
+	 * @throws DAOException if anything fail on database operation
+	 */
+	public String processPPSAck(SFRMMessageDVO mDVO) throws DAOException{
+		getLogger().debug("Message PPS Ack received");
+		//TODO: decide whether it need to remove all of the message segment record for this message after
+		//message status changed to PS
+		return changeAckStaus(mDVO, SFRMConstant.MSGS_PROCESSED);
+	}
+	
+	private boolean completePayload(String messageId, String partnershipId, String filename) throws DAOException, IOException, PayloadException{
+		PayloadsRepository inRepo = SFRMProcessor.getInstance().getIncomingRepository();
+		PackagedPayloads payload = (PackagedPayloads) inRepo.getPayload(new String[]{partnershipId, messageId}, PayloadsState.PLS_UPLOADING);
+		// --------------------------------------------------------
+		// Step 1: Create a payload folder for this payload received
+		// --------------------------------------------------------
+		FoldersPayload dir = payload.getFoldersPayload(inRepo, PayloadsState.PLS_UPLOADING, true);
+		
+		// --------------------------------------------------------
+		// Step 2: Copy the received payload to the payload folder with the filename specified before
+		// --------------------------------------------------------
+		File outFile = new File(dir.getRoot(), filename);
+		FileUtils.moveFile(payload.getRoot(), outFile);
+		
+		// ------------------------------------------------------------------------		
+		// Step 3: Delete the archive payload and rename the dir payload 
+		// ------------------------------------------------------------------------
+		payload.clearPayloadCache();
+		
+		// ------------------------------------------------------------------------		
+		// Step 4: Rename the folder payload to the finished name format 
+		// ------------------------------------------------------------------------
+		if (!dir.setToPending()){			
+			// TODO: Use the payload repository system.						
+			File f = new File(SFRMProcessor.getInstance().getIncomingRepository()
+				.getRepositoryPath(),
+				dir.getOriginalRootname());			
+			
+			if (f.exists()){
+				getLogger().warn(
+					SFRMLog.IPT_CALLER
+				   + "Deleting the payload folders with the same name: "
+				   +  dir.getOriginalRootname());
+				new FileSystem(f).purge();
+			}
+			dir.setToPending();
+		}
+		
+		return true;
+	}
+	
+	/**
+	 * Process the acknowledgement with PSD status
+	 * @param messageId message ID
+	 * @return the acknowledgement response content
+	 * @throws DAOException if anything fail on database operation
+	 */
+	public String processPSDAck(SFRMMessageDVO mDVO) throws DAOException{
+		getLogger().debug("Message PSD Ack received");
+		return changeAckStaus(mDVO, SFRMConstant.MSGS_SUSPENDED);
+	}
+	
+	
+	
+	/**
+	 * Process the acknowledgement with PRS status
+	 * @param messageId message ID
+	 * @return the acknowledgement response content
+	 * @throws DAOException if anything fail on database operation
+	 */
+	public String processPRSAck(SFRMMessageDVO mDVO) throws DAOException{
+		getLogger().debug("Message PRS Ack received");
+		return changeAckStaus(mDVO, SFRMConstant.MSGS_PROCESSING);
+	}
+	
+	/**
+	 * Change the message status accordingly and return the acknowledgement content
+	 * @param messageId - message id that need to change the status
+	 * @param toStatus - the status to change the message to
+	 * @return the acknowledgement response content
+	 * @throws DAOException if anything fail on database operation
+	 */
+	private String changeAckStaus(SFRMMessageDVO mDVO, String toStatus) throws DAOException{
+		
+		mDVO.setStatus(toStatus);
+		mDVO.setStatusDescription(SFRMConstant.getStatusDescription(toStatus));
+		
+		if(toStatus.equals(SFRMConstant.MSGS_PROCESSED)){
+			mDVO.setCompletedTimestamp(new Timestamp(System.currentTimeMillis()));
+		}
+		this.getMessageHandler().updateMessage(mDVO);		
+		SFRMAcknowledgementBuilder builder = new SFRMAcknowledgementBuilder();
+		builder.setMessage(mDVO.getMessageId(), mDVO.getStatus());
+		return builder.toString();
 	}
 	
 	// ------------------------------------------------------------------------
@@ -1317,7 +1150,7 @@ public class IncomingMessageHandler extends Component {
 	protected void 
 	logMessage(SFRMMessage incomingMessage){
 		// For DEBUG Purpose only
-        SFRMProcessor.core.log.debug(
+        getLogger().debug(
         	 SFRMLog.IMH_CALLER 
           + "msg info" 
           +  incomingMessage);
@@ -1336,11 +1169,12 @@ public class IncomingMessageHandler extends Component {
 	protected void 
 	logMessageType(String type){
 		// For DEBUG Purpose only
-        SFRMProcessor.core.log.debug(
+        getLogger().debug(
         	  SFRMLog.IMH_CALLER 
            +  SFRMLog.SPANNED_THRD 
            +" It is a sgt type of: " 
            +  type);        							 
 	}
 }
+
 

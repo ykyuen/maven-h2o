@@ -114,8 +114,10 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
             String action = checkStarAndConvertToPercent(request
                     .getParameter("action"));
             String convId = checkStarAndConvertToPercent(request
-                    .getParameter("conv_id"));
-
+                    .getParameter("conv_id"));     
+            
+            String primalMessageId = checkEmptyAndReturnNull(request
+            		.getParameter("primal_message_id"));
             // radio button and menu
             String messageBox = checkEmptyAndReturnNull(request
                     .getParameter("message_box"));
@@ -159,7 +161,8 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
             messageDVO.setAction(action);
             messageDVO.setConvId(convId);
             messageDVO.setMessageBox(messageBox);
-            messageDVO.setStatus(status);
+            messageDVO.setStatus(status);            
+            messageDVO.setPrimalMessageId(primalMessageId);
 
 			messageIterator = findMessageWithPagination(messageDVO,messageDAO, numberOfMessagesInt, offsetInt,displayLastInt, isTime);
             dom.setProperty("total_no_of_messages", String.valueOf(messageDAO
@@ -186,6 +189,8 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
         dom.setProperty("search_criteria/message_time",String.valueOf(displayLastInt));
         dom.setProperty("search_criteria/offset", String.valueOf(offsetInt));
         dom.setProperty("search_criteria/is_detail", String.valueOf(isDetail));
+        dom.setProperty("search_criteria/primal_message_id", request
+                .getParameter("primal_message_id"));
 
         for (int pi = 1; messageIterator.hasNext(); pi++) {
             MessageDVO returnData = (MessageDVO) messageIterator.next();
@@ -210,8 +215,12 @@ public class MessageHistoryPageletAdaptor extends AdminPageletAdaptor {
                     checkNullAndReturnEmpty(returnData.getConvId()));
             dom.setProperty("message[" + pi + "]/time_stamp", returnData
                     .getTimeStamp().toString());
+            dom.setProperty("message[" + pi + "]/primal_message_id", 
+            		checkNullAndReturnEmpty(returnData.getPrimalMessageId()));
             dom.setProperty("message[" + pi + "]/status",
                     checkNullAndReturnEmpty(returnData.getStatus()));
+            dom.setProperty("message[" + pi + "]/has_resend_as_new",
+                    checkNullAndReturnEmpty(returnData.getHasResendAsNew()));
 
             if (isDetail) {
                 dom.setProperty("message[" + pi + "]/from_party_id",

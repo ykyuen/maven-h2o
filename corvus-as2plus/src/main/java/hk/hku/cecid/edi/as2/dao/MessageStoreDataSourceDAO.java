@@ -21,6 +21,32 @@ import hk.hku.cecid.piazza.commons.dao.ds.DataSourceTransaction;
  */
 public class MessageStoreDataSourceDAO extends DataSourceDAO implements
         MessageStoreDAO {
+	
+	public void storeMessage(final MessageDVO primalMsgDVO, final MessageDVO msgDVO, 
+			final RepositoryDVO repoDVO, final RawRepositoryDVO rawRepoDVO) throws DAOException {
+		DataSourceProcess process = new DataSourceProcess(this) {
+            protected void doTransaction(DataSourceTransaction tx) throws DAOException {
+            	MessageDAO messageDAO = (MessageDAO) getFactory().createDAO(MessageDAO.class);
+                RepositoryDAO repositoryDAO = (RepositoryDAO) getFactory().createDAO(RepositoryDAO.class);
+                RawRepositoryDAO payloadDAO = (RawRepositoryDAO) getFactory().createDAO(RawRepositoryDAO.class);
+                
+                messageDAO.setTransaction(tx);
+                repositoryDAO.setTransaction(tx);
+                payloadDAO.setTransaction(tx);
+                
+                if (null != primalMsgDVO) {
+                	messageDAO.persist(primalMsgDVO);
+                }
+                messageDAO.create(msgDVO);
+                
+                repositoryDAO.create(repoDVO);
+                
+                payloadDAO.create(rawRepoDVO);
+            }
+        };
+
+        process.start();
+	}
 
     public void storeMessage(final MessageDVO messageDVO,
             final RepositoryDVO repositoryDVO) throws DAOException {
@@ -85,5 +111,4 @@ public class MessageStoreDataSourceDAO extends DataSourceDAO implements
     public DVO createDVO() {
         return null;
     }
-
 }

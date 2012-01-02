@@ -10,14 +10,15 @@
 package hk.hku.cecid.piazza.commons.module;
 
 import hk.hku.cecid.piazza.commons.Sys;
+import hk.hku.cecid.piazza.commons.util.ConsoleLogger;
 import hk.hku.cecid.piazza.commons.util.Instance;
 import hk.hku.cecid.piazza.commons.util.Logger;
 import hk.hku.cecid.piazza.commons.util.PropertyTree;
-import hk.hku.cecid.piazza.commons.util.ConsoleLogger;
 
 import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -204,6 +205,15 @@ public class Module extends Component {
         else {
             return (Component) components.get(id);
         }
+    }
+    
+    /**
+     * Gets all the components in this module.
+     * 
+     * @return all module components
+     */
+    public Collection getComponents() {
+    	return components.values();
     }
 
     /**

@@ -1,5 +1,5 @@
 /* 
- * Copyright(c) 2005 Center for E-Commerce Infrastructure Development, The
+* Copyright(c) 2005 Center for E-Commerce Infrastructure Development, The
  * University of Hong Kong (HKU). All Rights Reserved.
  *
  * This software is licensed under the GNU GENERAL PUBLIC LICENSE Version 2.0 [1]
@@ -8,24 +8,6 @@
  */
 
 package hk.hku.cecid.ebms.spa.task;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.Iterator;
-import java.util.List;
-import java.sql.Timestamp;
-
-import javax.mail.Session;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.xml.soap.SOAPException;
-import javax.xml.soap.SOAPMessage;
 
 import hk.hku.cecid.ebms.pkg.Description;
 import hk.hku.cecid.ebms.pkg.EbxmlMessage;
@@ -38,8 +20,6 @@ import hk.hku.cecid.ebms.spa.dao.MessageDVO;
 import hk.hku.cecid.ebms.spa.dao.MessageServerDAO;
 import hk.hku.cecid.ebms.spa.dao.OutboxDAO;
 import hk.hku.cecid.ebms.spa.dao.OutboxDVO;
-import hk.hku.cecid.ebms.spa.dao.PartnershipDAO;
-import hk.hku.cecid.ebms.spa.dao.PartnershipDVO;
 import hk.hku.cecid.ebms.spa.handler.EbxmlMessageDAOConvertor;
 import hk.hku.cecid.ebms.spa.handler.MessageClassifier;
 import hk.hku.cecid.ebms.spa.handler.MessageServiceHandler;
@@ -47,7 +27,6 @@ import hk.hku.cecid.ebms.spa.handler.MessageServiceHandlerException;
 import hk.hku.cecid.ebms.spa.handler.SignalMessageGenerator;
 import hk.hku.cecid.ebms.spa.listener.EbmsRequest;
 import hk.hku.cecid.ebms.spa.listener.EbmsResponse;
-
 import hk.hku.cecid.piazza.commons.dao.DAOException;
 import hk.hku.cecid.piazza.commons.module.ActiveTask;
 import hk.hku.cecid.piazza.commons.security.SMimeMessage;
@@ -55,6 +34,24 @@ import hk.hku.cecid.piazza.commons.security.TrustedHostnameVerifier;
 import hk.hku.cecid.piazza.commons.soap.SOAPHttpConnector;
 import hk.hku.cecid.piazza.commons.soap.SOAPMailSender;
 import hk.hku.cecid.piazza.commons.util.StringUtilities;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.sql.Timestamp;
+import java.util.Iterator;
+import java.util.List;
+
+import javax.mail.Session;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMessage;
+import javax.xml.soap.SOAPException;
+import javax.xml.soap.SOAPMessage;
 
 /**
  * @author Donahue Sze, Twinsen Tsang (modifiers)
@@ -340,7 +337,6 @@ public class OutboxTask implements ActiveTask {
     		return ;
     	}
     	
-    	
     	// Declare share variable during exeuction.  
     	String mID = messageDVO.getMessageId();
     	
@@ -480,7 +476,7 @@ public class OutboxTask implements ActiveTask {
         	else {
         		toStatus = MessageClassifier.INTERNAL_STATUS_DELIVERED;
         		toStatusDesc = "Message was sent.";
-        	}        	
+        	}
         	// Update the status and clear the message.
         	try{
         		this.messageDVO.setStatus(toStatus);
@@ -490,7 +486,7 @@ public class OutboxTask implements ActiveTask {
             	String detail = "Error in clear the non-reliable message: " + mID;  
                 EbmsProcessor.core.log.error(detail, daoe);
                 throw new DeliveryException (detail, daoe);
-            }        		
+            }
         }        
         // If the EbXML message request ACK, update the retried count and timeout time in the outbox. 
         else if (this.isAckRequested)
@@ -509,6 +505,12 @@ public class OutboxTask implements ActiveTask {
                 throw new DeliveryException (detail, daoe);
             }           
         }
+        
+        // Message sent event is fired already in sendMsgByHttp for sync reply
+        if (messageDVO.getSyncReply().equals("false") && null == protocolCommErr) {
+			fireMessageSentEvent(ebxmlMessage);
+        }
+		
         // Terminate after this execution.
     	this.retryEnabled = false;        
         // Some problem has been captured when delivering ebxml message. throw it and handle by the active task.
@@ -573,14 +575,14 @@ public class OutboxTask implements ActiveTask {
             conn.setDoOutput(true);
             reply = connector.send(ebxmlMessage.getSOAPMessage(), conn);
         } catch (Exception e) {
-                EbmsProcessor.core.log.error("Cannot send the message", e);
-                throw new DeliveryException("Cannot send the message", e);
+        	throw new DeliveryException("Cannot send the message", e);
         }
         
         // If it requests sync reply
-        if (isSyncReply) {
-            
+        if (isSyncReply) {            
             try {
+            	fireMessageSentEvent(ebxmlMessage);
+            	
 				EbxmlMessage replyMsg = new EbxmlMessage(reply);;
             
             	EbmsProcessor.core.log.info("Store incoming sync reply message");
@@ -673,11 +675,9 @@ public class OutboxTask implements ActiveTask {
 
                 MimeBodyPart bp = smsg.encrypt().getBodyPart();
                 message.setContent(bp.getContent(), bp.getContentType());
-
-                smtp.send(message);
-            } else {
-                smtp.send(message);
             }
+            smtp.send(message);
+            
         } catch (Exception e) {
             EbmsProcessor.core.log.error("Cannot send the message", e);
             throw new DeliveryException("Cannot send the message", e);
@@ -858,6 +858,17 @@ public class OutboxTask implements ActiveTask {
             throw new MessageServiceHandlerException(detail, daoe);
         }
     }
+    
+    private void fireMessageSentEvent(EbxmlMessage ebxmlMessage) {
+    	MessageClassifier messageClassifier = new MessageClassifier(ebxmlMessage);
+		String messageType = messageClassifier.getMessageType();
+		if (MessageClassifier.MESSAGE_TYPE_ORDER.equalsIgnoreCase(messageType)) {
+	    	EbmsEventModule eventModule = (EbmsEventModule) EbmsProcessor
+				.getModuleGroup().getModule(EbmsEventModule.MODULE_ID);
+	    	eventModule.fireMessageSent(ebxmlMessage);
+		}
+    }
+    
 
     /*
     private String findPrincipalId(EbxmlMessage ebxmlRequestMessage) {

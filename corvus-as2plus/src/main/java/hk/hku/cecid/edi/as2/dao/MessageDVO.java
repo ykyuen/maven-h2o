@@ -102,6 +102,27 @@ public interface MessageDVO extends DVO {
      */
     public void setOriginalMessageId(String originalToMessageId);
 
+    /**
+     * Set the primalMessageID which represent the message triggered "Resend as New"
+     * @param primalMessageId
+     */
+    public void setPrimalMessageId(String primalMessageId);
+    
+    /**
+     * @return String primalMessageId refer to the message that triggered "Resend as New"
+     */
+    public String getPrimalMessageId();
+    
+    /**
+     * @param hasResendAsNew Set to "true" if message has triggered "Resend as New", "false" if otherwise
+     */
+    public void setHasResendAsNew(String hasResendAsNew);
+    
+    /**
+     * @return "true" if message has triggered "Resend as New", "false" if otherwise.
+     */
+    public String getHasResendAsNew();
+    
     public String getReceiptUrl();
 
     public void setReceiptUrl(String url);
@@ -145,4 +166,8 @@ public interface MessageDVO extends DVO {
     public boolean isAcknowledged();
 
     public boolean isReceipt();
+    
+    public String getPartnershipId();
+    
+    public void setPartnershipId(String partnershipId);
 }

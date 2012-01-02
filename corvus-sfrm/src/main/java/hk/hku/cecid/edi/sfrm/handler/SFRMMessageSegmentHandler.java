@@ -4,8 +4,8 @@
  */
 package hk.hku.cecid.edi.sfrm.handler;
 
-import java.io.IOException;
 import java.util.List;
+import java.util.Vector;
 import java.sql.Timestamp;
 
 import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
@@ -38,7 +38,7 @@ public class SFRMMessageSegmentHandler extends DSHandler{
 	protected DAO getInstance() throws DAOException{
 		if (this.dao == null){
 			this.dao = (SFRMMessageSegmentDAO) 
-				SFRMProcessor.core.dao.createDAO(SFRMMessageSegmentDAO.class);
+				SFRMProcessor.getInstance().getDAOFactory().createDAO(SFRMMessageSegmentDAO.class);
 			return this.dao;
 		}
 		return this.dao;
@@ -91,7 +91,7 @@ public class SFRMMessageSegmentHandler extends DSHandler{
 					+ message.getSegmentLength());			
 		}				
 		// Log dubug information.
-		SFRMProcessor.core.log.info(
+		getLogger().info(
 			  SFRMLog.MSHDAO_CALLER
 		   +  SFRMLog.CREATE_SGT 
 		   +" msg id: "   + segDVO.getMessageId() 
@@ -337,6 +337,35 @@ public class SFRMMessageSegmentHandler extends DSHandler{
 				.findMaxSegmentNoByMessageIdAndBoxAndType(messageId, messageBox, type);
 	}
 	
+	public List retrieveDeliveredSegmentForMessage(String messageId) throws DAOException{
+		List results = ((SFRMMessageSegmentDAO)this.getInstance())
+			.findSegmentsByMessageIdAndBoxAndTypeAndStatus(messageId, SFRMConstant.MSGBOX_OUT, SFRMConstant.MSGT_PAYLOAD, SFRMConstant.MSGS_DELIVERED);
+		return results;
+	}
+	
+	/**
+	 * Find message segment by providing the message ID, message box, message type and a list of status 
+	 * @param messageId The message id of the mesage segment belong to
+	 * @param messageBox The message box of the message segment
+	 * @param messageType The segment type (META, PAYLOAD, ACK)
+	 * @param status The status of message status
+	 * @return List of SFRMMessageSegmentDVO
+	 * @throws DAOException
+	 */
+	public List retrieveMessages(String messageId, String messageBox, String messageType, String[] status) throws DAOException{
+		SFRMMessageSegmentDAO msDAO = (SFRMMessageSegmentDAO) this.getInstance();
+		Vector resultList = new Vector();
+		for(int i=0; status.length > i ; i++){
+			List list = msDAO.findSegmentsByMessageIdAndBoxAndTypeAndStatus(messageId, messageBox, messageType, status[i]);
+			resultList.addAll(list);
+		}
+		return resultList;
+	}
+	
+	public List retrieveMessages(String messageId, String messageBox, String type, List<Integer> segmentNums) throws DAOException{
+		SFRMMessageSegmentDAO msDAO = (SFRMMessageSegmentDAO) this.getInstance();
+		return msDAO.findSegmentByMessageIdAndBoxAndTypeAndNos(messageId, messageBox, type, segmentNums);
+	}
 	/**
 	 * DOES NOT SUPPORT CACHING. 
 	 */

@@ -7,12 +7,13 @@ import org.w3c.dom.Element;
 
 import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
 import hk.hku.cecid.edi.sfrm.spa.SFRMLog;
+import hk.hku.cecid.edi.sfrm.util.StatusQuery;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMConstant;
 import hk.hku.cecid.edi.sfrm.dao.SFRMMessageDVO;
+import hk.hku.cecid.edi.sfrm.dao.SFRMMessageSegmentDAO;
+import hk.hku.cecid.edi.sfrm.handler.MessageStatusQueryHandler;
 import hk.hku.cecid.edi.sfrm.handler.SFRMMessageHandler;
-import hk.hku.cecid.edi.sfrm.handler.SFRMMessageSegmentHandler;
 
-import hk.hku.cecid.piazza.commons.dao.DAOException;
 import hk.hku.cecid.piazza.commons.soap.SOAPRequestException;
 import hk.hku.cecid.piazza.commons.soap.WebServicesAdaptor;
 import hk.hku.cecid.piazza.commons.soap.WebServicesRequest;
@@ -71,64 +72,65 @@ public class SFRMMessageStatusQueryService extends WebServicesAdaptor {
 	 * 			The SOAP-based Web services request. 
 	 * @param response
 	 * 			The SOAP-based Web services response.
-	 * @throws SOAPRequestException
-	 *			Unable to process the SOAP request. 			
-	 * @throws DAOException
-	 * 			Error in database connectivity.
+	 * @throws Exception 
 	 */
+	
 	public void serviceRequested(
-		WebServicesRequest 	request,
-		WebServicesResponse response) throws SOAPRequestException, DAOException 
-	{
-		Element[] bodies = request.getBodies();
-		String messageID = getText(bodies, "messageId");
-		
-		if (messageID == null) {
-			throw new SOAPRequestException("Missing Parameters - Message ID");
-		}
-		
-		SFRMMessageHandler mHandle = SFRMProcessor.getMessageHandler();
-		SFRMMessageSegmentHandler msHandle = SFRMProcessor.getMessageSegmentHandler();
-		
-		// Extract the SFRM message by the web services parameter
-		SFRMMessageDVO mDVO = mHandle.retrieveMessage(messageID, SFRMConstant.MSGBOX_OUT);		
-				
-		if (mDVO != null){
-			String status 		 = mDVO.getStatus();
-			String statusDesc 	 = mDVO.getStatusDescription();
-			String numOfSegments = String.valueOf(mDVO.getTotalSegment());
+			WebServicesRequest 	request,
+			WebServicesResponse response) throws Exception 
+		{
+			Element[] bodies = request.getBodies();
+			String messageID = getText(bodies, "messageId");
 			
-			// Extract number of processed segments.			
-			String numOfProcessedSegments = String.valueOf(msHandle.retrieveMessageSegmentCount(
-				messageID, SFRMConstant.MSGBOX_OUT,	SFRMConstant.MSGT_PAYLOAD, SFRMConstant.MSGS_PROCESSED));
-			
-			// Extract the last update timestamp.
-			Timestamp lastUpdatedTime  = msHandle.retrieveLastUpdatedTimestamp(
-				messageID, SFRMConstant.MSGBOX_OUT, SFRMConstant.MSGT_PAYLOAD);
-
-			/*
-			 * The column of number of segments present in the SFRM message 
-			 * is not entered until the status changes to MSGS_PACKAGING.
-			 * so it will use Integer.MAX_VALUE as undetermined.   
-			 */
-			if (status.equals(SFRMConstant.MSGS_HANDSHAKING))
-				numOfSegments = String.valueOf(Integer.MAX_VALUE);
-						
-			/*
-			 * The last updated timestamp may be NULL for message segment if the 
-			 * SFRM message is in the stage of HS, PK, PKD and ST. So it uses the 
-			 * SFRM message proceeding timestamp instead of last segment timestamp.
-			 * If the proceeding timestamp is NULL also, it uses the creation 
-			 * timestamp of the message.      
-			 */  
-			if (lastUpdatedTime == null){
-				lastUpdatedTime = mDVO.getProceedTimestamp();
-				if (lastUpdatedTime == null)
-					lastUpdatedTime = mDVO.getCreatedTimestamp();
-					// Unknown situation, mark it timeout immediately.
-					if (lastUpdatedTime == null)
-						lastUpdatedTime = new Timestamp(System.currentTimeMillis());
+			if (messageID == null) {
+				throw new SOAPRequestException("Missing Parameters - Message ID");
 			}
+			
+			//Check the existence of message
+			SFRMMessageHandler mHandle = SFRMProcessor.getInstance().getMessageHandler();
+			
+			// Extract the SFRM message by the web services parameter
+			SFRMMessageDVO mDVO = mHandle.retrieveMessage(messageID, SFRMConstant.MSGBOX_OUT);
+			
+			//Check if the message existing in the database
+			if(mDVO == null){
+				this.generateReply(
+				response, "N/A", "SFRM message does not found", String.valueOf(Integer.MAX_VALUE), 
+				"0" , 0.0, -1, new Timestamp(System.currentTimeMillis()).toString());
+				return;
+			}
+			//End check the existence of message
+			
+			MessageStatusQueryHandler statusHandler = SFRMProcessor.getInstance().getMessageSpeedQueryHandler();
+			
+			StatusQuery query = (StatusQuery) statusHandler.getMessageSpeedQuery(messageID);
+			
+			String status = "N/A";
+			String statusDesc = "SFRM message does not found";
+			int numOfSegments = Integer.MAX_VALUE;
+			int numOfProcessedSegments = 0;
+			Timestamp lastUpdatedTime = new Timestamp(System.currentTimeMillis());
+			double speed = 0.0;
+			int estimatedTime = 0;
+			
+			//When the query is null, it is possible that the message status query was removed from the list, and the message was completed to send the message
+			if(query == null){
+				
+				SFRMMessageSegmentDAO segDAO = (SFRMMessageSegmentDAO) SFRMProcessor.getInstance().getMessageSegmentHandler().getDAOInstance();
+				query = new StatusQuery(messageID, segDAO);
+				query.init();
+				query.updateProgress();
+				query.updateCurrentSpeedFromMsg();
+			}
+
+						
+			status = query.getStatus();
+			statusDesc = query.getStatusDesc();
+			numOfSegments = query.getNumOfSegments();
+			numOfProcessedSegments = query.getNumOfProcessedSegments();
+			lastUpdatedTime = query.getLastUpdatedTime();
+			speed = query.getCurrentSpeed();
+			estimatedTime = query.getEstimatedTime();
 			
 			// Log information.
 			String detail = SFRMLog.SQS_CALLER + SFRMLog.QUERY_STATUS
@@ -136,23 +138,21 @@ public class SFRMMessageStatusQueryService extends WebServicesAdaptor {
 				+" status: " + status
 				+" sgt ct: " + numOfSegments
 				+" proc sgt ct: " + numOfProcessedSegments
-				+" last uptime: " + lastUpdatedTime;
+				+" estimated time: " + Integer.toString(estimatedTime)
+				+" last uptime: " + lastUpdatedTime
+				+" speed: " + speed;
+				
 			
-			SFRMProcessor.core.log.debug(detail);
+			SFRMProcessor.getInstance().getLogger().debug(detail);
 									
 			/*
 			 * Generate the SOAP reply message.
 			 */
 			this.generateReply(
-				response, status, statusDesc, numOfSegments,
-				numOfProcessedSegments, lastUpdatedTime.toString());
+				response, status, statusDesc, Integer.toString(numOfSegments),
+				Integer.toString(numOfProcessedSegments), speed, estimatedTime, lastUpdatedTime.toString());
 		}
-		else{
-			this.generateReply(
-				response, "N/A", "SFRM message does not found", String.valueOf(Integer.MAX_VALUE), 
-				"0" , new Timestamp(System.currentTimeMillis()).toString());
-		}
-	}
+	
 	
 	/**
 	 * Generate the SOAP response according to the specified parameters. 
@@ -176,6 +176,7 @@ public class SFRMMessageStatusQueryService extends WebServicesAdaptor {
 			WebServicesResponse response, 
 			String status, String statusDescription, 
 			String numOfSegments, String numOfProcessedSegments, 
+			double speed, int estimatedTime,
 			String lastUpdatedTime) throws SOAPRequestException 
 	{
 		try {
@@ -191,11 +192,16 @@ public class SFRMMessageStatusQueryService extends WebServicesAdaptor {
 			rootElement.addChildElement(
 				createText("numberOfProcessedSegments", numOfProcessedSegments, SFRM_XMLNS));
 			rootElement.addChildElement(
+				createText("sendingSpeed", Double.toString(speed), SFRM_XMLNS));
+			rootElement.addChildElement(
+				createText("estimatedTime", Long.toString(estimatedTime), SFRM_XMLNS));
+			rootElement.addChildElement(
 				createText("lastUpdatedTime", lastUpdatedTime, SFRM_XMLNS));
 			
 			response.setBodies(new SOAPElement[] { rootElement });
 			
 		} catch (Exception e) {
+			SFRMProcessor.getInstance().getLogger().error("Unable to generate reply message", e);
 			throw new SOAPRequestException("Unable to generate reply message", e);
 		}
 	}

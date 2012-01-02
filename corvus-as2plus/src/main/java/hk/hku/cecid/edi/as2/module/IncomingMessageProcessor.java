@@ -9,10 +9,7 @@
 
 package hk.hku.cecid.edi.as2.module;
 
-import java.io.InputStream;
-
 import hk.hku.cecid.edi.as2.AS2Exception;
-import hk.hku.cecid.edi.as2.AS2PlusProcessor;
 import hk.hku.cecid.edi.as2.dao.AS2DAOHandler;
 import hk.hku.cecid.edi.as2.dao.MessageDAO;
 import hk.hku.cecid.edi.as2.dao.MessageDVO;
@@ -23,35 +20,33 @@ import hk.hku.cecid.edi.as2.pkg.AS2Header;
 import hk.hku.cecid.edi.as2.pkg.AS2Message;
 import hk.hku.cecid.edi.as2.pkg.Disposition;
 import hk.hku.cecid.edi.as2.pkg.DispositionNotification;
-import hk.hku.cecid.piazza.commons.module.Component;
+import hk.hku.cecid.piazza.commons.module.SystemComponent;
 import hk.hku.cecid.piazza.commons.security.KeyStoreManager;
 import hk.hku.cecid.piazza.commons.security.SMimeMessage;
 import hk.hku.cecid.piazza.commons.servlet.RequestListenerException;
+
+import java.io.InputStream;
 
 
 /**
  * IncomingMessageProcessor
  * 
  * @author Hugo Y. K. Lam
+ * 
  *
  */
-public class IncomingMessageProcessor extends Component {
+public class IncomingMessageProcessor extends SystemComponent {
+	
+	private static final String KEYSTORE_MANAGER = "keystore-manager";
 
     public void processReceipt(AS2Message receipt) throws AS2Exception {
         try {
-            AS2PlusProcessor.getInstance().getLogger().info(receipt + " received");
+            getLogger().info(receipt + " received");
 
             if (receipt.getMessageID() == null) {
                 receipt.setMessageID(AS2Message.generateID());
             }
             
-            /* Capture the MDN message */
-            /* Modification by Jumbo
-             * Stop usage of messageRepository
-            AS2Processor.core.log.debug(receipt + " is being captured");
-            AS2Processor.getMessageRepository().persistMessage(receipt);
-			*/
-
             DispositionNotification dn;
             try {
                 dn = receipt.getDispositionNotification();
@@ -60,7 +55,7 @@ public class IncomingMessageProcessor extends Component {
                 throw new AS2Exception("Invalid disposition notification\n"+new String(receipt.toByteArray()), e);
             }
             
-            AS2DAOHandler daoHandler = new AS2DAOHandler(AS2PlusProcessor.getInstance().getDAOFactory());
+            AS2DAOHandler daoHandler = new AS2DAOHandler(getDAOFactory());
             PartnershipDVO partnership = daoHandler.findPartnership(receipt, true);
             MessageDAO messageDAO = daoHandler.createMessageDAO();
             MessageDVO originalMessageDVO = (MessageDVO)messageDAO.createDVO();
@@ -98,10 +93,10 @@ public class IncomingMessageProcessor extends Component {
                 }
                 
                 if (!dn.matchOriginalContentMIC(originalMessageDVO.getMicValue())) {
-                    AS2PlusProcessor.getInstance().getLogger().warn("Message Integrity Check failed - Original Message: " + originalMessageDVO.getMessageId() + ", Original MIC: " + originalMessageDVO.getMicValue() + ", Recevied MIC: " +  dn.getReceivedContentMIC());
+                    getLogger().warn("Message Integrity Check failed - Original Message: " + originalMessageDVO.getMessageId() + ", Original MIC: " + originalMessageDVO.getMicValue() + ", Recevied MIC: " +  dn.getReceivedContentMIC());
                 }
                 else {
-                    AS2PlusProcessor.getInstance().getLogger().info("Message Integrity Check succeeded - Original Message: " + originalMessageDVO.getMessageId());
+                    getLogger().info("Message Integrity Check succeeded - Original Message: " + originalMessageDVO.getMessageId());
                 }
             }
             
@@ -110,7 +105,7 @@ public class IncomingMessageProcessor extends Component {
                 disposition.validate();
             }
             catch (Exception e) {
-                AS2PlusProcessor.getInstance().getLogger().warn("Message " + originalMessageDVO.getMessageId() + " was sent but the receipt indicated an error occurred", e);
+                getLogger().warn("Message " + originalMessageDVO.getMessageId() + " was sent but the receipt indicated an error occurred", e);
             }
             
             /* Persist the receipt message */
@@ -129,8 +124,16 @@ public class IncomingMessageProcessor extends Component {
             
             daoHandler.createMessageStore().storeReceipt(
                     replyMessageDVO, replyRepositoryDVO, originalMessageDVO);
+					
+			AS2EventModule eventModule = (AS2EventModule) 
+				getModule().getGroup().getModule(AS2EventModule.MODULE_ID);
+           	if (disposition.isError()) {
+           		eventModule.fireErrorOccurred(receipt);
+           	} else {
+           		eventModule.fireResponseReceived(receipt);
+            }
             
-            AS2PlusProcessor.getInstance().getLogger().info("Receipt for message " + originalMessageDVO.getMessageId() + " has been processed successfully");
+            getLogger().info("Receipt for message " + originalMessageDVO.getMessageId() + " has been processed successfully");
         }
         catch (Exception e) {
             throw new AS2Exception("Error in processing AS2 receipt message", e);
@@ -139,10 +142,10 @@ public class IncomingMessageProcessor extends Component {
     
     public AS2Message processMessage(AS2Message requestMessage) throws AS2Exception {
         try {
-            AS2PlusProcessor.getInstance().getLogger().info(requestMessage + " received");
+            getLogger().info(requestMessage + " received");
             
             /* Persist the incoming message */
-            AS2DAOHandler daoHandler = new AS2DAOHandler(AS2PlusProcessor.getInstance().getDAOFactory());
+            AS2DAOHandler daoHandler = new AS2DAOHandler(getDAOFactory());
             RepositoryDVO requestRepositoryDVO = daoHandler.createRepositoryDVO(requestMessage, true);
             MessageDVO requestMessageDVO = daoHandler.createMessageDVO(requestMessage, true);
             requestMessageDVO.setStatus(requestMessage.isReceiptSynchronous()? MessageDVO.STATUS_PROCESSING:MessageDVO.STATUS_RECEIVED);
@@ -171,11 +174,11 @@ public class IncomingMessageProcessor extends Component {
             
     protected AS2Message processReceivedMessage(AS2Message requestMessage) throws AS2Exception {
         try{
-            AS2PlusProcessor.getInstance().getLogger().info(requestMessage + " is being processed");
+            getLogger().info(requestMessage + " is being processed");
             
-            AS2DAOHandler daoHandler = new AS2DAOHandler(AS2PlusProcessor.getInstance().getDAOFactory());
-            KeyStoreManager keyman = AS2PlusProcessor.getInstance().getKeyStoreManager();
-            IncomingMessage imsg = new IncomingMessage(requestMessage,keyman,daoHandler);
+            AS2DAOHandler daoHandler = new AS2DAOHandler(getDAOFactory());
+            KeyStoreManager keyman = (KeyStoreManager) getComponent(KEYSTORE_MANAGER);
+            IncomingMessage imsg = new IncomingMessage(requestMessage,keyman,daoHandler, getLogger());
             
             /* Handle the SMIME features */
             imsg.processSMime();
@@ -186,7 +189,7 @@ public class IncomingMessageProcessor extends Component {
             
             /* Generate a reply message if requested */
             if (requestMessage.isReceiptRequested()) {
-                AS2PlusProcessor.getInstance().getLogger().info(requestMessage + " is being replied");
+                getLogger().info(requestMessage + " is being replied");
                 
                 responseMessage = imsg.generateReceipt();
                 responseMessageDVO = daoHandler.createMessageDVO(responseMessage, false);
@@ -198,13 +201,6 @@ public class IncomingMessageProcessor extends Component {
                 else {
                     responseMessageDVO.setReceiptUrl(requestMessage.getHeader(AS2Header.RECEIPT_DELIVERY_OPTION));
                 }
-
-                /* Capture the reply message */
-                /*
-                 * Modification By Jumbo
-                AS2Processor.core.log.debug(responseMessage + " is being captured");
-                AS2Processor.getMessageRepository().persistMessage(responseMessage);
-                */
             }
             
             /* Update the original message and persist the reply message if any */
@@ -238,15 +234,21 @@ public class IncomingMessageProcessor extends Component {
             	AS2Message decrytedMessage = imsg.getDecrytedMessage();
             	InputStream contentIns =
             		decrytedMessage.getBodyPart().getDataHandler().getInputStream();
-//            	repoDVO.setContent(IOHandler.readBytes(contentIns));
             	repoDVO.setContent(decrytedMessage.toByteArray());
             	repoDAO.persist(repoDVO);
             	requestMessageDVO.setStatus(MessageDVO.STATUS_PROCESSED);
             }
 
             daoHandler.createMessageStore().storeReceipt(responseMessageDVO, responseRepositoryDVO, requestMessageDVO);
+			
+            if (!imsg.getDisposition().isError()) {
+	            AS2Message decrytedMessage = imsg.getDecrytedMessage();
+	            AS2EventModule eventModule = (AS2EventModule) 
+	            	getModule().getGroup().getModule(AS2EventModule.MODULE_ID);
+           		eventModule.fireMessageReceived(decrytedMessage);
+            }
             
-            AS2PlusProcessor.getInstance().getLogger().info(requestMessage + " has been processed successfully");
+            getLogger().info(requestMessage + " has been processed successfully");
 
             return responseMessage;
         }

@@ -8,15 +8,7 @@ import java.io.IOException;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.Properties;
 import java.util.ArrayList;
-
-import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
-
-import hk.hku.cecid.piazza.commons.io.Archiver;
-
-import hk.hku.cecid.piazza.commons.util.Instance;
-import hk.hku.cecid.piazza.commons.util.InstanceException;
 
 /**
  * The outgoing payloads repository retrieves the payload 
@@ -34,24 +26,12 @@ public class PackagedPayloadsRepository extends PayloadsRepository {
 	 * The packaged payload extension. 
 	 */
 	public static final String PACKAGE_EXT = ".sfrm";
-	
-	/**
-	 * The archiver to pack / unpack the packaged payload.
-	 */
-	private Archiver archiver = null;
-			
+				
 	/**
 	 * Invoke for component initialization.
 	 */
 	protected void init() throws Exception {
 		super.init();
-        Properties params = getParameters();
-        Instance ins = new Instance(params.getProperty("archiver"), this
-				.getClass().getClassLoader());
-        Object obj	 = ins.getObject();
-        if (!(obj instanceof Archiver))
-        	throw new InstanceException("Invalid Instance for the archiver.");
-        this.archiver = (Archiver) ins.getObject();
 	}
 
 	/**
@@ -67,14 +47,19 @@ public class PackagedPayloadsRepository extends PayloadsRepository {
 		while(itr.hasNext()){
 			try{
 				PackagedPayloads payload = new PackagedPayloads((File)itr.next(), this);
-				// Set the default archiver for each payload.
-				payload.setDefaultArchiver(this.archiver);
 				payloads.add(payload);			
 			}catch(IOException ioe){
-				SFRMProcessor.core.log.error("IO Error in Packaged payloads Repository",ioe);
+				getLogger().error("IO Error in Packaged payloads Repository",ioe);
 			}
 		}
 		return payloads;
+	}
+	
+	/**
+	 * @return return a set of ready to sent payload
+	 */
+	public Collection getReadyPayloads(){
+		return this.getPayloads("^[^~|##|%%|\\._].+\\.sfrm");
 	}
 	
 	/**
@@ -115,7 +100,6 @@ public class PackagedPayloadsRepository extends PayloadsRepository {
     						 params[1].toString() + PACKAGE_EXT;    	    	
     	PackagedPayloads pp = 
     		new PackagedPayloads(payloadName, initialState, this);    	
-    	pp.setDefaultArchiver(this.archiver);
     	return pp;
     }
     
@@ -140,10 +124,21 @@ public class PackagedPayloadsRepository extends PayloadsRepository {
     	if (params.length < 2)
     		throw new IllegalArgumentException(
 					"Not enough parameters for getting payload.");
-    	String payloadName = NamedPayloads.getStateForm(state) + 
-    						 params[0].toString() + 
-    						 NamedPayloads.decodeDelimiters + 
-    						 params[1].toString() + PACKAGE_EXT;
+    	//@since 2.0.0 check whether the packagaed payload is a single file or not
+    	String payloadName = null;
+    	if(params.length == 2){
+	    	payloadName = NamedPayloads.getStateForm(state) + 
+	    						 params[0].toString() + 
+	    						 NamedPayloads.decodeDelimiters + 
+	    						 params[1].toString() + PACKAGE_EXT;
+    	}else if(params.length > 2){
+    		//It should be a single file case and get this single file from repository apporiately
+    		payloadName = NamedPayloads.getStateForm(state) + 
+			 params[0].toString() + 
+			 NamedPayloads.decodeDelimiters + 
+			 params[1].toString() +
+			 NamedPayloads.filenameStartBracket + params[2] + NamedPayloads.filenameEndBracket + PACKAGE_EXT;
+    	}
     	File f = new File(this.getRepositoryPath(), payloadName);
     	if (f.exists())
     		return this.createPayloadsProxy(f);
@@ -161,7 +156,6 @@ public class PackagedPayloadsRepository extends PayloadsRepository {
     protected NamedPayloads createPayloadsProxy(File proxyObj){
     	try{
     		PackagedPayloads pp = new PackagedPayloads(proxyObj, this);
-    		pp.setDefaultArchiver(this.archiver);
     		return pp;
     	}catch(IOException ioe){
     		return null;
@@ -175,5 +169,9 @@ public class PackagedPayloadsRepository extends PayloadsRepository {
     	StringBuffer ret = new StringBuffer(super.toString());
     	ret .append("Extension: " + PACKAGE_EXT);
     	return ret.toString();
+    }
+    
+    public static void main(String args[]){
+    	
     }
 }

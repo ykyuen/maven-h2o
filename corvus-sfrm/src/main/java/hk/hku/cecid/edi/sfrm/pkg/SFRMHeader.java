@@ -14,6 +14,9 @@ package hk.hku.cecid.edi.sfrm.pkg;
  * 		Header schema updated for the impl of on-the-fly sending and recv mode.<br>
  * 		Remove deprecated fields.
  * 
+ * Version 2.0.0 - <br>
+ * 		Add Is-Packed header field
+ * 		Add Filename header field
  * @author Twinsen Tsang
  * @version	1.0.2
  * @since	1.0.0
@@ -28,7 +31,7 @@ public class SFRMHeader {
     /**
      * The SFRM version field.<br><br>
      * 
-     * The current value of this field is 1.5.0.<br><br>
+     * The current value of this field is 1.0.2.<br><br>
      */
     public static final String SFRM_VERSION = "SFRM-Version";
     
@@ -77,5 +80,12 @@ public class SFRMHeader {
     /**
      * The SFRM flag for representing it is a the last receipt / ack of the message.
      */
-    public static final String SFRM_RECEIPT_LAST = "Last-Receipt";    
+    public static final String SFRM_RECEIPT_LAST = "Last-Receipt";
+
+    /**
+     * The SFRM field to represent the file name of the payload.
+     * This field is significance when the Is-Packed file is set to No. 
+     */
+    public static final String SFRM_FILENAME = "Filename";
+    
 }

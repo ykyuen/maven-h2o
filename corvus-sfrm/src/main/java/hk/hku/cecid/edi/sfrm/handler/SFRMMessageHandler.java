@@ -4,13 +4,15 @@
  */
 package hk.hku.cecid.edi.sfrm.handler;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.List;
 
 import hk.hku.cecid.edi.sfrm.dao.SFRMMessageDAO;
 import hk.hku.cecid.edi.sfrm.dao.SFRMMessageDVO;
 import hk.hku.cecid.edi.sfrm.dao.SFRMPartnershipDVO;
+import hk.hku.cecid.edi.sfrm.spa.SFRMException;
 import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
-import hk.hku.cecid.edi.sfrm.pkg.SFRMConstant;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMMessage;
 
 import hk.hku.cecid.piazza.commons.dao.DAO;
@@ -41,7 +43,7 @@ public class SFRMMessageHandler extends DSHandler {
 		// TODO: Not thread-safety, may lead to partial constructed issue. 
 		if (this.dao == null){
 			this.dao = (SFRMMessageDAO) 
-				SFRMProcessor.core.dao.createDAO(SFRMMessageDAO.class);
+				SFRMProcessor.getInstance().getDAOFactory().createDAO(SFRMMessageDAO.class);
 			return this.dao;
 		}
 		return this.dao;
@@ -65,22 +67,13 @@ public class SFRMMessageHandler extends DSHandler {
 	 * @throws DAOException
 	 * 			If the sfrm message is null or with segment no not equal to zero
 	 * 			, or other database error.
+	 * @throws SFRMException 
+	 * @throws IOException 
+	 * @throws FileNotFoundException 
 	 */	 	 
-	public SFRMMessageDVO 
-	createMessageBySFRMMetaMessage(
-			SFRMMessage 		msg,
-			SFRMPartnershipDVO  pDVO, 
-			String 				messageBox,
-			String 				status, 
-			String 				statusDesc) 
-			throws DAOException 
-	{
-		if (msg == null)
-			throw new DAOException("Missing SFRM message.");
-		if (pDVO == null)
-			throw new DAOException("Missing SFRM partnership.");
-		if (msg.getSegmentNo() != 0)
-			throw new DAOException("The input SFRM message does not has segment no equal to zero.");
+	public SFRMMessageDVO createMessageBySFRMMetaMessage(
+			SFRMMessage msg, SFRMPartnershipDVO pDVO, String messageBox, String status, String statusDesc) 
+			throws DAOException, SFRMException, FileNotFoundException, IOException {
 		
 		String		   msgId  = msg.getMessageID();
 		SFRMMessageDAO msgDAO = (SFRMMessageDAO) this.getInstance();
@@ -94,14 +87,15 @@ public class SFRMMessageHandler extends DSHandler {
 		msgDVO.setTotalSegment		(msg.getTotalSegment());		
 		msgDVO.setStatusDescription	(statusDesc);
 		// Set the features of the message depends on the message box of this message.
-		if (messageBox.equals(SFRMConstant.MSGBOX_IN)){
-			msgDVO.setIsEncryped(msg.getClassifier().isEncrypted());
-			msgDVO.setIsSigned  (msg.getClassifier().isSigned());
-		} else 
-		if (messageBox.equals(SFRMConstant.MSGBOX_OUT)){
-			msgDVO.setIsEncryped(pDVO.isOutboundEncryptRequested());
-			msgDVO.setIsSigned  (pDVO.isOutboundSignRequested());
-		}		
+		msgDVO.setSignAlgorithm(pDVO.getSignAlgorithm());
+		msgDVO.setEncryptAlgorithm(pDVO.getEncryptAlgorithm());
+		//Update the single/multiple file related field information
+		msgDVO.setFilename			(msg.getFilename());
+		msgDVO.setIsHostnameVerified(pDVO.isHostnameVerified());
+		if (pDVO.getEncryptAlgorithm() != null) {		
+			msgDVO.setPartnerCertContent(pDVO.getEncryptX509CertificateBase64());
+		}
+
 		// cache-and-create action.
 		if (this.isCacheEnable){
 			String key = msgId + "_" + messageBox;
@@ -165,6 +159,17 @@ public class SFRMMessageHandler extends DSHandler {
 		return ((SFRMMessageDAO) this.getInstance())
 				.findMessageByMessageBoxAndStatus(messageBox, status);
 	}			
+	
+	/**
+	 * Retrieve a set of messages that is required to ack the acknowledgement from receiver
+	 * @param numOfMessage number of messages for acknowledgement request
+	 * @param offset offset in the message records
+	 * @return a list of message that is required to ack the acknowledgement
+	 * @throws DAOException
+	 */
+	public List retrieveAcknowledgmentMessages(int numOfMessage, int offset) throws DAOException{
+		return ((SFRMMessageDAO) this.getInstance()).findMessageForAcknowledgement(numOfMessage, offset);
+	}
 	
 	/**
 	 * Update the <code>msgDVO</code> to the pesistence DB.<br><br>
@@ -237,4 +242,6 @@ public class SFRMMessageHandler extends DSHandler {
 	private String extractKey(SFRMMessageDVO msgDVO) {
 		return (msgDVO != null) ? msgDVO.getMessageId() + "_" + msgDVO.getMessageBox(): "";
 	}
+	
+	
 }

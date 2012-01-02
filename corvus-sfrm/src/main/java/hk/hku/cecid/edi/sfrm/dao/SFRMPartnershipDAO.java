@@ -64,7 +64,7 @@ public interface SFRMPartnershipDAO extends DAO {
 	public SFRMPartnershipDVO findPartnershipById
 		(String partnershipId) throws DAOException;
 	
-	/*
+	/**
 	 * Find all of the partnership existing in the database
 	 * 
 	 * @return return a list of partnership

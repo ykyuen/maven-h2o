@@ -43,8 +43,7 @@ public class MailTask implements ActiveTask {
 
         // String SMIME_ENCRYPTED = "application/pkcs7-mime";
 
-        // MessageServiceHandler msh = 
-        	MessageServiceHandler.getInstance();
+        // MessageServiceHandler msh = MessageServiceHandler.getInstance();
 
         try {
             KeyStoreManager ksm = EbmsProcessor

@@ -9,10 +9,6 @@
 		<parameter type="column" name="partner_endpoint" value="partnerEndpoint" />
 		<parameter type="column" name="partner_cert_fingerprint" value="partnerCertFingerprint" />
 		<parameter type="column" name="is_hostname_verified" value="isHostnameVerified" />
-		<parameter type="column" name="is_outbound_sign_requested" value="isOutboundSignRequested" />
-		<parameter type="column" name="is_outbound_encrypt_requested" value="isOutboundEncryptRequested" />
-		<parameter type="column" name="is_inbound_sign_enforced" value="isInboundSignEnforced" />
-		<parameter type="column" name="is_inbound_encrypt_enforced" value="isInboundEncryptEnforced" />
 		<parameter type="column" name="sign_algorithm" value="signAlgorithm" />
 		<parameter type="column" name="encrypt_algorithm" value="encryptAlgorithm" />
         <parameter type="column" name="retry_max" value="retryMax" />

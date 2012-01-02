@@ -8,7 +8,6 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.util.Iterator;
 import java.util.Collection;
-
 import hk.hku.cecid.piazza.commons.io.FileSystem;
 
 /** 
@@ -62,7 +61,7 @@ public class FoldersPayload extends NamedPayloads{
 	 * @throws Exception
 	 * 			Any kind of exceptions.
 	 */
-	protected 
+	protected
 	FoldersPayload(
 			String 				payloadsName,
 			int    				initialState,
@@ -204,7 +203,7 @@ public class FoldersPayload extends NamedPayloads{
 	 */
 	protected void 
 	decode() throws ArrayIndexOutOfBoundsException
-	{		
+	{
 		if (this.getTokens().size() < 2)
 			throw new ArrayIndexOutOfBoundsException(
 					"Invalid Folders Payload Format.");

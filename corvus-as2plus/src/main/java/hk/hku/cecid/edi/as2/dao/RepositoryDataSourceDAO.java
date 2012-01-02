@@ -9,7 +9,6 @@
 
 package hk.hku.cecid.edi.as2.dao;
 
-import hk.hku.cecid.piazza.commons.dao.DAOException;
 import hk.hku.cecid.piazza.commons.dao.DVO;
 import hk.hku.cecid.piazza.commons.dao.ds.DataSourceDAO;
 

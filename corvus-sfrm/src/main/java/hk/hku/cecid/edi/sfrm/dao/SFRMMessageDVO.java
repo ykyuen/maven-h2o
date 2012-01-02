@@ -4,8 +4,10 @@
  */
 package hk.hku.cecid.edi.sfrm.dao;
 
+import java.security.cert.X509Certificate;
 import java.sql.Timestamp;
 
+import hk.hku.cecid.edi.sfrm.spa.SFRMException;
 import hk.hku.cecid.piazza.commons.dao.DVO;
 
 /**
@@ -73,13 +75,32 @@ public interface SFRMMessageDVO extends DVO {
 	
 	public void setTotalSize(long totalSize);
 		
-	public boolean getIsSigned();
+//	public boolean getIsSigned();
+//	
+//	public void setIsSigned(boolean isSigned);
+//	
+//	public boolean getIsEncrypted();
+//	
+//	public void setIsEncryped(boolean isEncrypted);
 	
-	public void setIsSigned(boolean isSigned);
+	//Newly added column
+	public boolean getIsHostnameVerified();
 	
-	public boolean getIsEncrypted();
+	public void setIsHostnameVerified(boolean isVerified);
 	
-	public void setIsEncryped(boolean isEncrypted);
+	public String getPartnerCertContent();
+	
+	public void setPartnerCertContent(String certContent);
+	
+	public X509Certificate getPartnerX509Certificate() throws SFRMException;
+	//End Newly Added column
+	public String getSignAlgorithm();
+	
+	public void setSignAlgorithm(String aignAlgorithm);
+	
+	public String getEncryptAlgorithm();
+	
+	public void setEncryptAlgorithm(String encryptAlgorithm);
 			
 	public String getStatus();
 	
@@ -100,4 +121,8 @@ public interface SFRMMessageDVO extends DVO {
 	public Timestamp getCompletedTimestamp();
 	
 	public void setCompletedTimestamp(Timestamp completedTimestamp);
+	
+	public String getFilename();
+	
+	public void setFilename(String filename);
 }

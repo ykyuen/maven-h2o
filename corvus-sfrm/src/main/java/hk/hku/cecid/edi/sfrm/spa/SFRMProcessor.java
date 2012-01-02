@@ -1,296 +1,138 @@
-/**
- * Contains the SPA plugin hook point for the piazza corvus
- * and the constant table.
- */
 package hk.hku.cecid.edi.sfrm.spa;
 
 import java.util.HashMap;
+import java.util.List;
 
-import javax.activation.CommandMap;
-import javax.activation.MailcapCommandMap;
+import hk.hku.cecid.piazza.commons.module.ModuleException;
+import hk.hku.cecid.piazza.commons.module.ModuleGroup;
+import hk.hku.cecid.piazza.commons.module.PluginProcessor;
+import hk.hku.cecid.piazza.commons.os.OSManager;
+import hk.hku.cecid.piazza.commons.security.KeyStoreManager;
+import hk.hku.cecid.piazza.commons.spa.Plugin;
+import hk.hku.cecid.piazza.commons.spa.PluginException;
 
+import hk.hku.cecid.edi.sfrm.handler.AcknowledgementHandler;
+import hk.hku.cecid.edi.sfrm.handler.MessageStatusQueryHandler;
+import hk.hku.cecid.edi.sfrm.handler.SFRMExternalRequestHandler;
 import hk.hku.cecid.edi.sfrm.handler.SFRMMessageHandler;
 import hk.hku.cecid.edi.sfrm.handler.SFRMMessageSegmentHandler;
 import hk.hku.cecid.edi.sfrm.handler.SFRMPartnershipHandler;
 import hk.hku.cecid.edi.sfrm.handler.IncomingMessageHandler;
+import hk.hku.cecid.edi.sfrm.pkg.SFRMConstant;
+import hk.hku.cecid.edi.sfrm.com.PackagedPayloadsRepository;
 import hk.hku.cecid.edi.sfrm.com.PayloadsRepository;
-
-import hk.hku.cecid.piazza.commons.Sys;
-import hk.hku.cecid.piazza.commons.module.ModuleGroup;
-import hk.hku.cecid.piazza.commons.module.ModuleException;
-import hk.hku.cecid.piazza.commons.module.SystemModule;
-import hk.hku.cecid.piazza.commons.spa.Plugin;
-import hk.hku.cecid.piazza.commons.spa.PluginException;
-import hk.hku.cecid.piazza.commons.spa.PluginHandler;
-import hk.hku.cecid.piazza.commons.os.OSSelector;
-import hk.hku.cecid.piazza.commons.os.OSManager;
-import hk.hku.cecid.piazza.commons.security.KeyStoreManager;
+import hk.hku.cecid.edi.sfrm.dao.SFRMMessageDVO;
 
 /**
- * The SFRM main processor for all modules and component.<br><br>
+ * The SFRM SPA plugin processor for initiating and containing the references to all SFRM components.<br><br>
  * 
  * Creation Date: 27/9/2006
  * 
- * @author Twinsen Tsang
- * @version 1.0.4
- * @since	1.0.0
+ * @author Twinsen, Philip
+ * @version 2.0.0
+ * @since	1.5
  */
-public class SFRMProcessor implements PluginHandler {
+public class SFRMProcessor extends PluginProcessor {
+	
+	protected static ModuleGroup moduleGroup;
+	private static SFRMProcessor processor;
 
-	/**
-	 * The system module.
-	 */
-	public  static SystemModule core;
+	public static SFRMProcessor getInstance() throws ModuleException{
+		if (processor == null)
+			throw new ModuleException("SFRMProcessor didn't initialized");			
+		return processor;
+	}
+	
+	protected ModuleGroup getModuleGroupImpl(){
+		return moduleGroup;
+	}
+	
+	protected void setModuleGroupImpl(ModuleGroup mg){
+		moduleGroup = mg;
+	}
+	
+	public void processActivation(Plugin plugin) throws PluginException {
+		processor = this;
+		super.processActivation(plugin);
+//		suspendProcessingMessage();
+//		adjust();
+	}
 	
 	/**
-	 * The whole module group.
+	 * Suspend the message which is in processing and segmenting status in the previous SFRM running session
+	 * @throws PluginException
 	 */
-	private static ModuleGroup moduleGroup;
+	private void suspendProcessingMessage() throws PluginException{
+		getLogger().debug("enter the suspend message");
+		//Retrieve the processing message
+		SFRMMessageHandler msgHandler = getMessageHandler();
+		try{
+			List psMsgs = msgHandler.retrieveMessages(SFRMConstant.MSGBOX_OUT, SFRMConstant.MSGS_PROCESSING);
+			List msgs = msgHandler.retrieveMessages(SFRMConstant.MSGBOX_OUT, SFRMConstant.MSGS_SEGMENTING);
+			msgs.addAll(psMsgs);
+			
+			SFRMExternalRequestHandler reqHandler = getExternalRequestHandler();
+			for(int i=0; msgs.size() > i ;i++){
+				SFRMMessageDVO msgDVO = (SFRMMessageDVO) msgs.get(i);
+				SFRMProcessor.getInstance().getLogger().debug("msg id: " + msgDVO.getMessageId() + " need to be suspend");
+				reqHandler.suspendMessage(msgDVO.getMessageId());
+			}
+		}catch(Exception e){
+			throw new PluginException("Error when suspending the processing and segmenting message from previous SFRM session", e);
+		}
+	}
 
-	/**
-	 * The key store manager for SFRM.
-	 */
-	private static KeyStoreManager ksm;
+	public SFRMMessageHandler getMessageHandler() {
+		return (SFRMMessageHandler)getSystemComponent("message-handler");
+	}
 	
-	/**
-	 * The os manager for SFRM.
-	 */
-	private static OSManager osm;
+	public SFRMMessageSegmentHandler getMessageSegmentHandler(){
+		return (SFRMMessageSegmentHandler)getSystemComponent("message-segment-handler");
+	}
 	
-	/**
-	 * The DAO message handler for SFRM.
-	 */
-	private static SFRMMessageHandler msgHandle;
+	public IncomingMessageHandler getIncomingMessageHandler(){
+		return (IncomingMessageHandler)getSystemComponent("incoming-message-handler");
+	}
 	
-	/**
-	 * The DAO partnership handler for SFRM.
-	 */
-	private static SFRMPartnershipHandler ptshipHandle;
+	public AcknowledgementHandler getAcknowledgementHandler(){
+		return (AcknowledgementHandler)getSystemComponent("acknowledgement-handler");
+	}
 	
-	/**
-	 * The DAO segment handler for SFRM
-	 */
-	private static SFRMMessageSegmentHandler segHandle;
+	public SFRMExternalRequestHandler getExternalRequestHandler(){
+		return (SFRMExternalRequestHandler)getSystemComponent("external-request-handler");
+	}
+
+	public MessageStatusQueryHandler getMessageSpeedQueryHandler(){
+		return (MessageStatusQueryHandler)getSystemComponent("message-status-query-handler");
+	}
 	
-	/**
-	 * The outgoing respository.
-	 */
-	private static PayloadsRepository outRes;
+	public PayloadsRepository getIncomingRepository() {
+		return (PayloadsRepository)getSystemComponent("incoming-payload-repository");
+	}
 	
-	/**
-	 * The packaged respositoy.
-	 */
-	private static PayloadsRepository packRes;
+	public PackagedPayloadsRepository getOutgoingRepository() {
+		return (PackagedPayloadsRepository)getSystemComponent("outgoing-payload-repository");
+	}
 	
-	/**
-	 * The incoming respository.
-	 */
-	private static PayloadsRepository incRes;
+	public KeyStoreManager getKeyStoreManager() {
+		return (KeyStoreManager)getSystemComponent("keystore-manager");
+	}
+	
+	public SFRMPartnershipHandler getPartnershipHandler() {
+		return (SFRMPartnershipHandler)getSystemComponent("partnership-handler");
+	}
+	
+	public OSManager getOSManager(){
+		return (OSManager)getSystemComponent("os-manager");
+	}
+	
+	//TODO: will review the need of locking mechanism 
 	
 	/**
 	 * The internal guard lock for each message. 
 	 */
 	private static transient HashMap guardLock = new HashMap(); 
 			
-	/**
-	 * [Overriden] method.
-	 * 
-	 * @param plugin
-	 * 
-	 * @see hk.hku.cecid.piazza.commons.spa.PluginHandler#processActivation(Plugin)
-	 */
-	public void 
-	processActivation(Plugin plugin) throws PluginException 
-	{
-		String mgDescriptor = plugin.getParameters().getProperty("module-group-descriptor");
-		moduleGroup 		= new ModuleGroup(mgDescriptor, plugin.getClassLoader());
-		Sys.getModuleGroup().addChild(moduleGroup);
-
-		core = moduleGroup.getSystemModule();
-		
-		// Initialize pointer referecnce.
-		SFRMProcessor.initModuleGroupRef();
-		moduleGroup.startActiveModules();	
-
-		if (core == null) {
-			throw new PluginException("Ebms core system module not found");
-		}
-	}
-
-	/**
- 	 * [Overriden] method.
-	 * 
-	 * @return the Lft module group.
-	 */
-	public static ModuleGroup getModuleGroup() {
-		if (moduleGroup == null) {
-			throw new RuntimeException("Lft module group not initialized");
-		} else {
-			return moduleGroup;
-		}
-	}
-	
-	/**
-	 * Set the module group. This SHOULD be only used for standalone program.
-	 * 
-	 * @param group	
-	 * 			The module group to set. 
-	 */
-	private static void setModuleGroup(ModuleGroup group){
-		moduleGroup = group;
-	}
-	
-	/**
-	 * Initialize all component pointer reference in the module 
-	 * group.
-	 */
-	private static void 
-	initModuleGroupRef()
-	{
-		// Initialize Key store manager [Security Layer]
-		ksm = (KeyStoreManager) core.getComponent("keystore-manager");
-		if (ksm == null)
-			throw new ModuleException("SFRM key store manager does not found");		
-
-		// Initialize OS manager. [OS Layer]
-		OSSelector oss = (OSSelector) core.getComponent("os-selector");
-		if (oss == null)
-			throw new ModuleException("SFRM os selector does not found");
-		osm = oss.getInstance();
-
-		// Initialize DAO-Message Handler [DAO-Wrapper Layer]
-		msgHandle = (SFRMMessageHandler) core.getComponent("message-handler");
-		if (msgHandle == null)
-			throw new ModuleException("SFRM Message handler does not found.");
-		
-		ptshipHandle = (SFRMPartnershipHandler) core.getComponent("partnership-handler");
-		if (ptshipHandle == null)
-			throw new ModuleException("SFRM Partnership handler does not found.");
-		
-		segHandle = (SFRMMessageSegmentHandler) core.getComponent("message-segment-handler");
-		if (segHandle == null)
-			throw new ModuleException("SFRM Segment handler does not found.");
-	
-		// Initialize Payload Repository
-		outRes  = (PayloadsRepository) core.getComponent("outgoing-payload-repository");
-		packRes = (PayloadsRepository) core.getComponent("outgoing-packaged-payload-repository");
-		incRes	= (PayloadsRepository) core.getComponent("incoming-payload-repository");
-		
-		if (outRes == null || packRes == null || incRes == null){
-			throw new ModuleException("SFRM Payload Repository does not found.");
-		}
-	}
-	
-	/**
-	 * Overriden method.
-	 * 
-	 * @see hk.hku.cecid.piazza.commons.spa.PluginHandler#processDeactivation(Plugin)
-	 */
-	public void 
-	processDeactivation(Plugin plugin) throws PluginException 
-	{
-		moduleGroup.stopActiveModules();
-	}
-	
-	/**
-	 * Initialize the procesor for the console application.
-	 * 
-	 * @throws PluginException
-	 */
-	public static void 
-	processConsoleActivation() throws PluginException 
-	{
-		new SFRMProcessor();
-		SFRMProcessor.core = Sys.getModuleGroup().getSystemModule();
-		SFRMProcessor.setModuleGroup(Sys.getModuleGroup());			
-		SFRMProcessor.initModuleGroupRef();
-		SFRMProcessor.getModuleGroup().startActiveModules();						
-	}
-	
-	/** 
-	 * @return the security key store manager.
-	 */
-	public static KeyStoreManager 
-	getKeyStoreManager() 
-	{
-		return SFRMProcessor.ksm;
-	}
-	
-	/**
-	 * @return the os manager.
-	 */
-	public static OSManager 
-	getOSManager()
-	{
-		return SFRMProcessor.osm;
-	}
-	
-	/**
-	 * @return the database message handler.
-	 */
-	public static SFRMMessageHandler 
-	getMessageHandler()
-	{
-		return SFRMProcessor.msgHandle;
-	}		
-	
-	/** 
-	 * @return the database partnership handler.
-	 */
-	public static SFRMPartnershipHandler 
-	getPartnershipHandler()
-	{
-		return SFRMProcessor.ptshipHandle;
-	}	
-	
-	/**
-	 * @return the database message segment handler.
-	 */
-	public static SFRMMessageSegmentHandler 
-	getMessageSegmentHandler()
-	{
-		return SFRMProcessor.segHandle;
-	}
-	
-	/**
-	 * @return the incoming message handler.
-	 */
-	public static IncomingMessageHandler 
-	getIncomingMessageHandler()
-	{
-		// Storing as a pointer reference is faster, but overhead of just one method 
-		// invocation is insigificant. And also hotspot will inline this method
-		// after certain time.
-		return IncomingMessageHandler.getInstance();
-	}
-		
-	/** 
-	 * @return the outgoing payloads repository.
-	 */
-	public static PayloadsRepository 
-	getOutgoingPayloadRepository()
-	{
-		return SFRMProcessor.outRes;
-	}
-	
-	/** 
-	 * @return the packaged payloads repository.
-	 */
-	public static PayloadsRepository 
-	getPackagedPayloadRepository()
-	{	
-		return SFRMProcessor.packRes;
-	}
-	
-	/** 
-	 * @return the incoming payloads repository.
-	 */
-	public static PayloadsRepository 
-	getIncomingPayloadRepository()
-	{
-		return SFRMProcessor.incRes;
-	}
-	
 	/**
 	 * [@SYNCRHONIZED] Create a Global lock for a particular key.<br/><br/>
 	 * 
@@ -317,4 +159,13 @@ public class SFRMProcessor implements PluginHandler {
 	public static synchronized void	removeLock(String key){
 		guardLock.remove(key);
 	}
+	
+//	private void adjust(){
+//		ActiveTaskModule am = (ActiveTaskModule) this.getModuleGroup().getModule("sfrm.outgoing.segment.collector");
+//		long segmentSize = SFRMProperties.getPayloadSegmentSize();
+//		long maxSpeed = SFRMProperties.getSpeedMaximum();
+//		int threadCount = StringUtilities.parseInt(am.getComponent("task-list").getParameters().getProperty("max-thread-count"), 5);		
+//		long expectedExecInterval = ((segmentSize/1024)*threadCount)/maxSpeed;
+//		am.setExecutionInterval(expectedExecInterval);
+//	}
 }

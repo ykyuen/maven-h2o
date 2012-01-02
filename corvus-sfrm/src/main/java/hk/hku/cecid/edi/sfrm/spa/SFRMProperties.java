@@ -48,23 +48,52 @@ public class SFRMProperties {
 	 */
 	public static final String XPATH_MAX_PAYLOAD_SIZE 	= 
 		XPATH_SFRM + XPATH_SEPARATOR + "max-payload-size";	 	
-		
+	
+	/**
+	 * The XML Path for the data content handler (DCH) for the 
+	 * activiation framework.
+	 */
+	public static final String XPATH_MAILCAPS			=
+		XPATH_SFRM + XPATH_SEPARATOR + "mailcaps" + XPATH_SEPARATOR + "cap";
+	
+	
+	
+	/**
+	 * The XML Path for the interval for ticking the speed of the sending message
+	 */
+	public static final String XPATH_SPEED_TICK_INTERVAL=
+		XPATH_SFRM + XPATH_SEPARATOR + "speed-tick-interval";
+	
+	/**
+	 * The XML Path for the maximum speed that user specified (Bandwidth Optimizer)
+	 */
+	public static final String XPATH_SPEED_MAXIMUM=
+		XPATH_SFRM + XPATH_SEPARATOR + "speed-maximum";
+	
+	
 	/* -------------------------------------------------------------------
 	 * Private variable
 	 * -------------------------------------------------------------------
 	 */		
 	private static final int segmentSize 		 = 
-		StringUtilities.parseInt(
-				SFRMProcessor.core.properties.getProperty(XPATH_SEGMENT_SIZE));
+		StringUtilities.parseInt(SFRMProcessor.getInstance().getSystemModule().properties.getProperty(XPATH_SEGMENT_SIZE));
 	
 	private static final String trustedCertStore = 
-		SFRMProcessor.core.properties.getProperty(XPATH_TRUSTED_CERTS);	
-	
+		SFRMProcessor.getInstance().getSystemModule().properties.getProperty(XPATH_TRUSTED_CERTS);
 	private static final long maxPayloadSize 	 = 
 		StringUtilities.parseLong(
-				SFRMProcessor.core.properties.getProperty(XPATH_MAX_PAYLOAD_SIZE),
+				SFRMProcessor.getInstance().getSystemModule().properties.getProperty(XPATH_MAX_PAYLOAD_SIZE),
 				50465865723L);
 	
+	private static final String [] mailcaps		 =
+		SFRMProcessor.getInstance().getSystemModule().properties.getProperties(XPATH_MAILCAPS);
+	
+	
+	private static final long speedTickInterval =
+		StringUtilities.parseLong(SFRMProcessor.getInstance().getSystemModule().properties.getProperty(XPATH_SPEED_TICK_INTERVAL), 1000L);
+	
+	private static final long speedMaximum = 
+		StringUtilities.parseLong(SFRMProcessor.getInstance().getSystemModule().properties.getProperty(XPATH_SPEED_MAXIMUM), 2048L);
 	/** 
 	 * Get the fixed size of each payload segment.
 	 * 
@@ -92,6 +121,19 @@ public class SFRMProperties {
 	}
 	
 	/**
+	 * @return 
+	 * 		the available mail caps for the activiation framework available 
+	 * 		in the SFRM plugin.
+	 */
+	public static String[] getAvailableMailCaps(){
+		return SFRMProperties.mailcaps;
+	}
+	
+	public static long getSpeedTickInterval(){
+		return SFRMProperties.speedTickInterval;
+	}
+		
+	/**
 	 * toString method.
 	 */
 	public String 
@@ -101,7 +143,8 @@ public class SFRMProperties {
 		.append(this.getClass().getName() + "\n")
 		.append("Segment Size:           " + SFRMProperties.segmentSize 	 + "\n")
 		.append("Trusted Certs Location: " + SFRMProperties.trustedCertStore + "\n")
-		.append("Max Payload Size:       " + SFRMProperties.maxPayloadSize	 + "\n")	
+		.append("Max Payload Size:       " + SFRMProperties.maxPayloadSize	 + "\n")
+		.append("Speed Maximum:          " + SFRMProperties.speedMaximum     + "\n")
 		.toString();
 	}
 }

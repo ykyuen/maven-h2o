@@ -4,6 +4,7 @@
  */
 package hk.hku.cecid.edi.sfrm.dao;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 import hk.hku.cecid.piazza.commons.dao.DAO;
@@ -178,6 +179,26 @@ public interface SFRMMessageSegmentDAO extends DAO {
 			String status) throws 
 			DAOException;
 	
+	/**
+	 * Find segment by their message Id, nessage box, message type and message status
+	 * 
+	 * @param messageId
+	 *            The message id of the message segment.
+	 * @param messageBox
+	 *            The message box of the message segment.
+	 * @param type 
+	 * 			  The segment type of the message segment.
+	 * @param status 
+	 * 			  The status of the message segment.
+	 * @return
+	 * @throws DAOException
+	 */
+	public List findSegmentsByMessageIdAndBoxAndTypeAndStatus(
+			String messageId, 
+			String messageBox,
+			String type, 
+			String status) throws 
+			DAOException;
 		
 	/**
 	 * Find the maximum number of segment no in
@@ -196,4 +217,63 @@ public interface SFRMMessageSegmentDAO extends DAO {
 			String messageBox,
 			String type) throws 
 			DAOException;
+	
+	/**
+	 * Find segment by their message id, message box, type and list of segment number
+	 * @param messageId message ID
+	 * @param messageBox message box
+	 * @param type segment type
+	 * @param segmentNos list of segment number
+	 * @return list of SFRMMessageSegmentDVO
+	 * @throws DAOException
+	 */
+	public List 
+	findSegmentByMessageIdAndBoxAndTypeAndNos(
+			String messageId,
+			String messageBox,
+			String type,
+			List<Integer> segmentNos) throws
+			DAOException;
+	
+	public int updateBatchSegmentsRecoveryStatus(
+			String status,
+			String messageId,
+			String messageBox,
+			String segmentType,
+			List<Integer> segNums) throws 
+			DAOException;
+	
+	public int updateBatchSegmentsStatus(
+			String status,
+			Timestamp completeTime,
+			String messageId,
+			String messageBox,
+			String segmentType,
+			List<Integer> segNums) throws 
+			DAOException;
+	
+	
+	/**
+	 * Find how many segments is available into the database.
+	 * 
+	 * @param messageId
+	 *            The message id of the message segment.
+	 * @param messageBox
+	 *            The message box of the message segment.
+	 * @param type 
+	 * 			  The segment type of the message segment.
+	 * @param statues 
+	 * 			  The statues of the message segment.
+	 * @return
+	 * @throws DAOException
+	 */
+	public long 
+	findNumOfBytesSentByMessageIdAndBoxAndTypeAndStatues(
+			String messageId, 
+			String messageBox,
+			String type, 
+			long proceedTime,
+			List<String> statues) throws 
+			DAOException;
+	
 }

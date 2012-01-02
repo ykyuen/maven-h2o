@@ -1,22 +1,27 @@
 package hk.hku.cecid.edi.sfrm.handler;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.X509Certificate;
 
+import hk.hku.cecid.edi.sfrm.net.FastHttpConnector;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMConstant;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMMessage;
+import hk.hku.cecid.edi.sfrm.pkg.SFRMMessageClassifier;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMMessageException;
 
-import hk.hku.cecid.edi.sfrm.dao.SFRMPartnershipDVO;
-import hk.hku.cecid.edi.sfrm.dao.SFRMMessageDVO;
-
+import hk.hku.cecid.edi.sfrm.spa.SFRMComponent;
+import hk.hku.cecid.edi.sfrm.spa.SFRMException;
 import hk.hku.cecid.edi.sfrm.spa.SFRMLog;
-import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
 
-import hk.hku.cecid.piazza.commons.net.FastHttpConnector;
+import hk.hku.cecid.edi.sfrm.activation.FileRegionDataSource;
+
 import hk.hku.cecid.piazza.commons.net.ConnectionException;
 import hk.hku.cecid.piazza.commons.security.KeyStoreManager;
-import hk.hku.cecid.piazza.commons.security.SMimeException;
 import hk.hku.cecid.piazza.commons.security.TrustedHostnameVerifier;
 
 /**
@@ -30,24 +35,29 @@ import hk.hku.cecid.piazza.commons.security.TrustedHostnameVerifier;
  * @version 1.0.0
  * @since	1.0.3
  */
-public class OutgoingMessageHandler {
-	
+public class OutgoingMessageHandler extends SFRMComponent{	
 	static{
 		System.setProperty("sun.net.client.defaultConnectTimeout", "60000");
 		System.setProperty("sun.net.client.defaultReadTimeout"	 , "60000");
 	}
 		
-	/**
-	 * Singleton Handler.
-	 */
-	private static OutgoingMessageHandler omh = new OutgoingMessageHandler();
+	private static OutgoingMessageHandler omh;
 	
 	/**
-	 * @return an instnace of OutgoingMessageHandler.
+	 * @return an instance of OutgoingMessageHandler.
 	 */
 	public static OutgoingMessageHandler getInstance(){
 		return omh;
 	}
+		
+	/**
+	 * Initialization of this Component
+	 */
+	protected void init() throws Exception{
+		super.init();
+		omh = this;
+	}
+	
 	
 	/**
 	 * Pack the SMIME (secure MIME) message to become 
@@ -70,96 +80,132 @@ public class OutgoingMessageHandler {
 	 * 			The secured SFRM message.
 	 * @throws UnrecoverableKeyException 
 	 * @throws NoSuchAlgorithmException 
-	 * @throws SFRMMessageException 
-	 * 
-	 * @throws SFRMMessageException 			
-	 * @throws NoSuchAlgorithmException
-	 * @throws UnrecoverableKeyException
-	 * @throws SMimeException
+	 * @throws SFRMException 
 	 * 
 	 * @since	
 	 * 			1.0.3 
 	 */
 	protected SFRMMessage packOutgoingMessage(
-			SFRMMessage message, SFRMMessageDVO	msgDVO, SFRMPartnershipDVO pDVO) 
-		throws SFRMMessageException, NoSuchAlgorithmException, UnrecoverableKeyException {
+			SFRMMessage message, String signAlgorithm, String encryptAlgorithm, X509Certificate encryptCert) 
+		throws SFRMException, NoSuchAlgorithmException, UnrecoverableKeyException {
 	
 		// No need to sign and encrypt, return immediately.
-		if (!msgDVO.getIsSigned() && !msgDVO.getIsEncrypted())
+		if (signAlgorithm == null && encryptAlgorithm == null)
 			return message;
 		
 		// Create SMIME Header.
-		KeyStoreManager keyman = SFRMProcessor.getKeyStoreManager();
+		KeyStoreManager keyman = getKeyStoreManager();
 		
 		String logInfo = " msg id: " + message.getMessageID()
 						+" and sgt no: " + message.getSegmentNo();
 		
 		// Setup up signing using MD5 or SHA1		
-		if (msgDVO.getIsSigned() && pDVO.getSignAlgorithm() != null){
-			SFRMProcessor.core.log.info(SFRMLog.OMH_CALLER + SFRMLog.SIGNING_SGT + logInfo);  
-			message.sign(keyman.getX509Certificate(), keyman.getPrivateKey(), pDVO.getSignAlgorithm());
+		if(signAlgorithm != null){
+			getLogger().info(SFRMLog.OMH_CALLER + SFRMLog.SIGNING_SGT + logInfo);  
+			message.sign(keyman.getX509Certificate(), keyman.getPrivateKey(), signAlgorithm);
 		}
 		
 		// Setup up encrypting using RC2, DES
-		if (msgDVO.getIsEncrypted() && pDVO.getEncryptAlgorithm() != null) {
-			SFRMProcessor.core.log.info(SFRMLog.OMH_CALLER + SFRMLog.ENCRYPT_SGT + logInfo); 
-			message.encrypt(pDVO.getEncryptX509Certificate(), pDVO.getEncryptAlgorithm());
+		if(encryptAlgorithm != null){
+			getLogger().info(SFRMLog.OMH_CALLER + SFRMLog.ENCRYPT_SGT + logInfo);
+			message.encrypt(encryptCert, encryptAlgorithm);
 		}
 						
 		return message;
 	}
 	
 	/**
-	 * @param message
-	 * @param pDVO
-	 * @param msgDVO
+	 * Send SFRM message.
+	 * <br><br>
 	 * 
-	 * @throws Exception
+	 * @param message The original SFRM Message.
+	 * @param isSign Digital signature is required
+	 * @param isEncryptReq Encryption is required
+	 * @param signAlg Signing algorithm
+	 * @param encryptAlg Encryption algorithm  
+	 * @param encrypt Partner public certificate for encryption
+	 * 			
+	 * @return HTTP response
+	 * 
+	 * @throws SFRMMessageException 			
+	 * @throws ConnectionException
+	 * 
+	 * @since  2.0.0	 
 	 */
-	public void processOutgoingMessage(SFRMMessage message, SFRMPartnershipDVO pDVO, SFRMMessageDVO	msgDVO) 
-		throws Exception {
+	// FIXME: other segment type is signed or encrypted in task
+	public FastHttpConnector sendMessage (
+			SFRMMessage message, String endpoint, boolean isHostVerified,
+			String signAlg, String encryptAlg, X509Certificate encryptCert) 
+		throws SFRMMessageException, ConnectionException {
 		
 		if (message == null)
-			throw new NullPointerException("Missing SFRM Message.");
-		if (pDVO == null)
-			throw new NullPointerException("Missing Partnership Record.");
-		if (msgDVO == null)
-			throw new NullPointerException("Missing Message Record.");		
+			throw new SFRMMessageException("Missing SFRM Message");
+		
 		// Pack the SFRM Message
 		// TODO: All segment should use this method to pack, re-design interface.
-		if (message.getSegmentType().equals(SFRMConstant.MSGT_META))
-			message = this.packOutgoingMessage(message, msgDVO, pDVO);
-		
+
+		if (message.getSegmentType().equals(SFRMConstant.MSGT_META)){	
+			try {
+				this.packOutgoingMessage(message, signAlg, encryptAlg, encryptCert);
+			} catch (Exception e) {
+				throw new SFRMMessageException("Failed to sign/encrypt message", e);
+			}
+		}			
 		// Create the HTTP Connection.
 		// TODO: Use connection pool.
-		FastHttpConnector httpConn = new FastHttpConnector
-			(msgDVO.getPartnerEndpoint());
+		// TODO: refactor and more test on FastHttpConnector	
+			
+		FastHttpConnector httpConn;
+		try {
+			httpConn = new FastHttpConnector(endpoint);
+		} catch (MalformedURLException e) {
+			throw new ConnectionException("Failed to create FastHttpConnector", e);
+		}
 		
 		// Add SSL Verification if switched on.
-		if (pDVO.isHostnameVerified())
+		if (isHostVerified)
 			httpConn.setHostnameVerifier(new TrustedHostnameVerifier());
 		
 		// Log sending information.
-		SFRMProcessor.core.log.info(
+		getLogger().info(
 			  SFRMLog.OMH_CALLER
 		   +  SFRMLog.SEND_SGT
-		   +" To " + msgDVO.getPartnerEndpoint()
+		   +" To " + endpoint
 		   +" with msg info"
 		   +  message);
 		
-		try {
-			httpConn.send(message.getContentStream(), message.getHeaders());
+		int responseCode; 
+		try{						
+			SFRMMessageClassifier classifier = message.getClassifier();
 			
-			int responseCode = httpConn.getResponseCode();
+			if(message.getSegmentType().equals(SFRMConstant.MSGT_PAYLOAD) && !classifier.isEncrypted() && !classifier.isSigned()){
+				FileRegionDataSource fSrc = (FileRegionDataSource) message.getContent();
+				httpConn.send(fSrc.getInputStream(), message.getHeaders());
+			}else{
+				httpConn.send(message.getContentStream(), message.getHeaders());
+			}
 			
-			SFRMProcessor.core.log.debug("Response code for handshaking: " + responseCode);
-
-			if (responseCode != 200)
+			responseCode = httpConn.getResponseCode();
+			if (responseCode < 200 || responseCode > 300)
 				throw new ConnectionException("Invalid Response Code.");
- 
-		} catch (ConnectionException ce) {
-			throw ce;
-		} 
+			
+			return httpConn;
+		} catch (Exception e){
+			throw new ConnectionException("Failed to make FastHttpConnector connection", e);
+		}		
 	}
 	
+		
+	public SFRMMessage sendMessageWithMessageResponse (
+			SFRMMessage message, String endpoint, boolean isHostVerified,
+			String signAlg, String encryptAlg, X509Certificate encryptCert) 
+		throws SFRMMessageException, ConnectionException, IllegalStateException, IOException {
+		
+		FastHttpConnector conn = sendMessage(message, endpoint, isHostVerified,
+				signAlg, encryptAlg, encryptCert);
+		
+		SFRMMessage retMessage = new SFRMMessage(conn.getResponseHeaders(), conn.getResponseContentStream());
+		return retMessage;								
+	}
+
 }

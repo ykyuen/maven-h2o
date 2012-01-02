@@ -10,7 +10,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.ArrayList;
 
-import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
 
 /**
  * The outgoing payloads repository retrieves the 
@@ -23,8 +22,12 @@ import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
  * @since	1.0.0
  */
 public class OutgoingPayloadsRepository extends PayloadsRepository {
-			
+	public OutgoingPayloadsRepository(String path) throws Exception{
+		super(path);
+	}
+	
 	private Collection getPayloads(String regex){
+		getLogger().debug("Inside the OutgoingPayloadsRepository#getPayloads");
 		// Get all directories without "~" symbol.
 		Collection dirs = this.getRepositorySystem().getDirectories(false,
 				regex);
@@ -35,7 +38,7 @@ public class OutgoingPayloadsRepository extends PayloadsRepository {
 			try{
 				payloads.add(new FoldersPayload((File)itr.next(), this));
 			}catch(IOException ioe){
-				SFRMProcessor.core.log.error(
+				getLogger().error(
 						"IO Error in Outgoing payloads Repository", ioe);
 			}
 		}

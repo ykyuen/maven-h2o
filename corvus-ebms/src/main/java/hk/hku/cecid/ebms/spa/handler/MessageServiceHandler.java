@@ -278,8 +278,8 @@ public class MessageServiceHandler {
 
     public void processOutboundMessage(EbmsRequest request,
             EbmsResponse response) throws MessageServiceHandlerException {
-        OutboundMessageProcessor outboundMessageProcessor = OutboundMessageProcessor
-                .getInstance();
+        OutboundMessageProcessor outboundMessageProcessor = 
+        	OutboundMessageProcessor.getInstance();
         outboundMessageProcessor.processOutgoingMessage(request, response);
     }
 

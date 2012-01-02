@@ -4,7 +4,9 @@
  */
 package hk.hku.cecid.edi.sfrm.dao.ds;
 
+import java.sql.Timestamp;
 import java.util.List;
+import java.util.ArrayList;
 
 import hk.hku.cecid.edi.sfrm.dao.SFRMMessageSegmentDAO;
 import hk.hku.cecid.edi.sfrm.dao.SFRMMessageSegmentDVO;
@@ -57,13 +59,6 @@ public class SFRMMessageSegmentDSDAO extends DataSourceDAO implements
 			throws DAOException{
 		return (SFRMMessageSegmentDVO) super.findByKey(
 				new Object[] { messageId, messageBox, new Integer(segmentNo), type });
-		
-		// TODO: Deleted the commented code after testing.
-		/*List l = super.find(
-				"find_message_segment_by_message_id_and_box_and_type",
-		if (l.iterator().hasNext())
-			return (SFRMMessageSegmentDVO) l.iterator().next();*/
-		//return null;
 	}
 	
 	/**
@@ -202,6 +197,32 @@ public class SFRMMessageSegmentDSDAO extends DataSourceDAO implements
 	}
 	
 	/**
+	 * Find segment by their message Id, nessage box, message type and message status
+	 * 
+	 * @param messageId
+	 *            The message id of the message segment.
+	 * @param messageBox
+	 *            The message box of the message segment.
+	 * @param type 
+	 * 			  The segment type of the message segment.
+	 * @param status 
+	 * 			  The status of the message segment.
+	 * @return
+	 * @throws DAOException
+	 */
+	public List findSegmentsByMessageIdAndBoxAndTypeAndStatus(
+			String messageId, 
+			String messageBox,
+			String type, 
+			String status) 
+			throws DAOException
+	{
+			return super.
+				find("find_messsage_segment_by_msgid_msgbox_type_status", 
+						new Object[]{messageId, messageBox, type, status});
+	}
+	
+	/**
 	 * Find the maximum number of segment no in
 	 * the database from the specified parameters. 
 	 * 
@@ -232,4 +253,124 @@ public class SFRMMessageSegmentDSDAO extends DataSourceDAO implements
 		}
 		return 0;
 	}
+	
+	public List findSegmentByMessageIdAndBoxAndTypeAndNos(
+			String messageId,
+			String messageBox,
+			String type,
+			List<Integer> segmentNos
+			) throws
+			DAOException{
+		ArrayList parameters = new ArrayList();
+		String sql = super.getFinder("find_message_segment_by_msgid_msg_box_type");
+		String segFilter = super.getFilter("find_message_segment_by_msgid_msg_box_type_filter");		
+		String questionToken = "";
+		for(int i=0 ; segmentNos.size() > i ; i++){
+			questionToken += "?";
+			if(i != segmentNos.size() - 1){
+				questionToken += ",";
+			}
+		}
+		segFilter = segFilter.replace("?", questionToken);
+		sql += " AND " + segFilter;
+		parameters.add(messageId);
+		parameters.add(messageBox);
+		parameters.add(type);
+		parameters.addAll(segmentNos);
+		return super.executeQuery(sql, parameters.toArray());		
+	}
+	
+	/**
+	 * Update the message segment status in batch
+	 * @param status status of message segments to update to
+	 * @param segNums list of segment number to be update
+	 */
+	public int updateBatchSegmentsRecoveryStatus(
+			String status, 
+			String messageId,
+			String messageBox,
+			String segmentType,
+			List<Integer> segNums) throws 
+			DAOException{
+		String sql = this.getSQL("update_batch_segments_status");
+		String filter = super.getFilter("update_batch_segments_status_filter");
+		String questionToken = buildQuestionToken(segNums.size());
+		filter = filter.replace("?", questionToken);
+		sql += " AND " + filter;
+		ArrayList parameters = new ArrayList();
+		parameters.add(status);
+		parameters.add(messageId);
+		parameters.add(messageBox);
+		parameters.add(segmentType);
+		parameters.addAll(segNums);		
+		return this.executeUpdate(sql, parameters.toArray());
+	}
+	
+	public int updateBatchSegmentsStatus(
+			String status,
+			Timestamp completeTime,
+			String messageId,
+			String messageBox,
+			String segmentType,
+			List<Integer> segNums) throws 
+			DAOException{
+		String sql = this.getSQL("update_batch_segments_status_complete_time");
+		String filter = super.getFilter("update_batch_segments_status_filter");
+		String questionToken = buildQuestionToken(segNums.size());
+		filter = filter.replace("?", questionToken);
+		sql += " AND " + filter;		
+		ArrayList parameters = new ArrayList();
+		parameters.add(status);
+		parameters.add(completeTime);
+		parameters.add(messageId);
+		parameters.add(messageBox);
+		parameters.add(segmentType);
+		parameters.addAll(segNums);		
+		return this.executeUpdate(sql, parameters.toArray());
+	}
+	
+	public long 
+	findNumOfBytesSentByMessageIdAndBoxAndTypeAndStatues(
+			String messageId, 
+			String messageBox,
+			String type, 
+			long proceedTime,
+			List<String> statues) throws 
+			DAOException{
+		
+		if(statues == null || statues.size() == 0)
+			throw new DAOException("Status should not be NULL");
+		String sql = super.getFinder("find_num_of_bytes_by_msgid_msgbox_type_statues");
+		String filter = super.getFilter("find_num_of_bytes_by_msgid_msgbox_type_statues_filter");
+		
+		String questionToken = buildQuestionToken(statues.size());
+		filter = filter.replace("?", questionToken);
+		sql += " AND " + filter;
+		
+		ArrayList parameters = new ArrayList();
+		parameters.add(messageId);
+		parameters.add(messageBox);
+		parameters.add(type);
+		parameters.add(new Timestamp(proceedTime));
+		parameters.addAll(statues);
+		List results = super.executeRawQuery(sql, parameters.toArray());
+		List resultEntry = (List) results.get(0);
+		
+		if(resultEntry.get(0) == null)
+			return 0L;
+				
+        return ((Number) resultEntry.get(0)).longValue();
+	}
+	
+	private String buildQuestionToken(int size){
+		String token = "";
+		for(int i=0 ; size > i ; i++){
+			token += "?";
+			if(i != size - 1){
+				token += ",";
+			}
+		}
+		return token;
+	}
+	
 }

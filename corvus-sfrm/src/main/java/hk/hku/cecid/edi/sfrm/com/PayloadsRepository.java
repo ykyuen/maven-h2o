@@ -5,8 +5,7 @@ import java.util.Collection;
 import java.util.Properties;
 
 import hk.hku.cecid.piazza.commons.io.FileSystem;
-import hk.hku.cecid.piazza.commons.module.Component;
-
+import hk.hku.cecid.piazza.commons.module.SystemComponent;
 /**
  * A Generic repository for collect a set of payloads that 
  * satisfies some criteria.<br><br>
@@ -33,7 +32,8 @@ import hk.hku.cecid.piazza.commons.module.Component;
  * @version 1.0.2
  * @since	1.0.0
  */
-public abstract class PayloadsRepository extends Component {
+//public abstract class PayloadsRepository extends Component {
+public abstract class PayloadsRepository extends SystemComponent {
 
 	/**
 	 * The root of the repository.
@@ -52,6 +52,12 @@ public abstract class PayloadsRepository extends Component {
         super();
     }
     
+    public PayloadsRepository(String repoPath) throws Exception{
+    	super();
+    	super.init();
+    	initRepository(repoPath);
+    }
+    
     /**
      * Component Initialization.
      * 
@@ -61,7 +67,7 @@ public abstract class PayloadsRepository extends Component {
         super.init();
         Properties params = getParameters();
         String location = params.getProperty("location");
-        initRepository(location);            
+        initRepository(location);
     }
 
     /**

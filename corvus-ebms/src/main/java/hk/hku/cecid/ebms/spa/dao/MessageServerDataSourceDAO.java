@@ -25,7 +25,9 @@ public class MessageServerDataSourceDAO extends DataSourceDAO implements
 
     public void storeMessage(final MessageDVO messageDVO,
             final RepositoryDVO repositoryDVO) throws DAOException {
-
+    	
+    	setPartnershipId(messageDVO);
+    	
         DataSourceProcess process = new DataSourceProcess(this) {
             protected void doTransaction(DataSourceTransaction tx)
                     throws DAOException {
@@ -36,7 +38,7 @@ public class MessageServerDataSourceDAO extends DataSourceDAO implements
 
                 messageDAO.setTransaction(tx);
                 repositoryDAO.setTransaction(tx);
-
+                
                 messageDAO.addMessage(messageDVO);
                 repositoryDAO.addRepository(repositoryDVO);
             }
@@ -66,9 +68,13 @@ public class MessageServerDataSourceDAO extends DataSourceDAO implements
         process.start();
     }*/
 
-    public void storeOutboxMessage(final MessageDVO messageDVO,
-            final RepositoryDVO repositoryDVO, final OutboxDVO outboxDVO)
-            throws DAOException {
+    public void storeOutboxMessage(
+    		final MessageDVO messageDVO,
+            final RepositoryDVO repositoryDVO, 
+            final OutboxDVO outboxDVO,
+            final MessageDVO primalMsgDVO) throws DAOException {
+    	
+    	setPartnershipId(messageDVO);
 
         DataSourceProcess process = new DataSourceProcess(this) {
             protected void doTransaction(DataSourceTransaction tx)
@@ -83,6 +89,10 @@ public class MessageServerDataSourceDAO extends DataSourceDAO implements
                 messageDAO.setTransaction(tx);
                 repositoryDAO.setTransaction(tx);
                 outboxDAO.setTransaction(tx);
+                
+                if (primalMsgDVO != null) {
+                	messageDAO.persist(primalMsgDVO);
+                }
 
                 messageDAO.addMessage(messageDVO);
                 repositoryDAO.addRepository(repositoryDVO);
@@ -91,6 +101,17 @@ public class MessageServerDataSourceDAO extends DataSourceDAO implements
         };
 
         process.start();
+    }
+    
+    private void setPartnershipId(MessageDVO msgDVO) throws DAOException {
+    	PartnershipDAO partnershipDAO = (PartnershipDAO) getFactory().createDAO(PartnershipDAO.class);
+    	PartnershipDVO partnershipDVO = (PartnershipDVO) partnershipDAO.createDVO();
+    	partnershipDVO.setCpaId(msgDVO.getCpaId());
+    	partnershipDVO.setService(msgDVO.getService());
+    	partnershipDVO.setAction(msgDVO.getAction());
+    	if (partnershipDAO.findPartnershipByCPA(partnershipDVO)) {
+    		msgDVO.setPartnershipId(partnershipDVO.getPartnershipId());
+    	}
     }
 
     public void clearMessage(final MessageDVO data) throws DAOException {
@@ -126,54 +147,6 @@ public class MessageServerDataSourceDAO extends DataSourceDAO implements
 
         process.start();
 
-    }
-    
-    public MessageDVO resetMessage(final String messageId, 
-    								final String messageBox,
-    								final String status)throws DAOException{
-    	
-    	final MessageDAO messageDAO = (MessageDAO) getFactory().createDAO(MessageDAO.class);
-      	final MessageDVO messageDVO = (MessageDVO) messageDAO.createDVO();
-    	
-    	DataSourceProcess process = new DataSourceProcess(this) {
-          	protected void doTransaction(DataSourceTransaction tx)                    
-            		throws DAOException {
-            	           	 
-          	  messageDAO.setTransaction(tx);
-           	  messageDVO.setMessageId(messageId);
-           	  messageDVO.setMessageBox(messageBox);
-           	  messageDVO.setStatus(status);
-           	  messageDVO.setStatusDescription(null);
-           	  messageDAO.persist(messageDVO);
-
-           	  // Delete Ack message if the status was turned to 'PD'
-           	  if(status.equalsIgnoreCase("PD")){
-           		MessageDVO data = (MessageDVO) messageDAO.createDVO();
-           	  	data.setRefToMessageId(messageId);
-           	  	data.setMessageBox(MessageClassifier.MESSAGE_BOX_INBOX);
-           	  	data.setMessageType(MessageClassifier.MESSAGE_TYPE_ACKNOWLEDGEMENT);
-           	  	messageDAO.deleteMessage(data);
-           	  }
-           	  
-           	  //Add a record to outbox 
-           	  OutboxDAO outboxDAO = (OutboxDAO) getFactory().createDAO(OutboxDAO.class);
-           	  outboxDAO.setTransaction(tx);
-           	  OutboxDVO outboxDVO = (OutboxDVO) outboxDAO.createDVO();
-           	  outboxDVO.setMessageId(messageId);
-           	  outboxDVO.setRetried(0);
-           	  outboxDAO.addOutbox(outboxDVO);
-            }
-        };
-        
-        messageDVO.setMessageId(messageId);
-        messageDVO.setMessageBox(messageBox);
-
-        if (messageDAO.retrieve(messageDVO)) {
-        	process.start();
-        	return messageDVO;
-        }else{
-        	return null;
-        }
     }
 
     /*

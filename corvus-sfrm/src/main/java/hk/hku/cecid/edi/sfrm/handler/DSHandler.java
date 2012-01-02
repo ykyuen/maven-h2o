@@ -6,15 +6,13 @@ package hk.hku.cecid.edi.sfrm.handler;
 
 import java.util.Properties;
 
+import hk.hku.cecid.edi.sfrm.dao.DVOCacher;
+import hk.hku.cecid.edi.sfrm.dao.SimpleLRUDVOCacher;
 import hk.hku.cecid.piazza.commons.dao.DAO;
 import hk.hku.cecid.piazza.commons.dao.DVO;
 import hk.hku.cecid.piazza.commons.dao.DAOException;
-import hk.hku.cecid.piazza.commons.dao.DVOCacher;
-import hk.hku.cecid.piazza.commons.dao.SimpleLRUDVOCacher;
-import hk.hku.cecid.piazza.commons.module.Component;
+import hk.hku.cecid.piazza.commons.module.SystemComponent;
 import hk.hku.cecid.piazza.commons.util.StringUtilities;
-
-import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
 
 /**
  * The class DSHandler provides abstract interface 
@@ -28,7 +26,7 @@ import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
  * @version 1.0.2
  * @since	1.0.0
  */
-public abstract class DSHandler extends Component {
+public abstract class DSHandler extends SystemComponent {
 
 	/**
 	 * The singleton dao.
@@ -75,7 +73,7 @@ public abstract class DSHandler extends Component {
 		try{			
 			return this.getInstance();
 		}catch(DAOException daoe){
-			SFRMProcessor.core.log.fatal("Fail to create DAO Instance", daoe);
+			getLogger().fatal("Fail to create DAO Instance", daoe);
 		}		
 		return null;
 	}	

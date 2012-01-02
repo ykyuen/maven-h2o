@@ -1,11 +1,11 @@
 package hk.hku.cecid.edi.sfrm.handler;
 
 import hk.hku.cecid.piazza.commons.module.Component;
-import hk.hku.cecid.piazza.commons.util.TimedOutHashTable;
 
 import hk.hku.cecid.edi.sfrm.pkg.SFRMMessage;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMConstant;
 import hk.hku.cecid.edi.sfrm.pkg.SFRMMessageClassifier;
+import hk.hku.cecid.edi.sfrm.util.TimedOutHashTable;
 
 /**
  * The <code>SFRMDoSHandler</code> is a simple barrier to ensure

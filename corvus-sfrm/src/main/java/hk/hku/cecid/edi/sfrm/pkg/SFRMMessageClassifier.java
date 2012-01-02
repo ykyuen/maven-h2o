@@ -39,6 +39,7 @@ public class SFRMMessageClassifier {
 	 * 0010(bin) / 0xX2(hex) - RECEIPT
 	 * 0011(bin) / 0xX3(hex) - RECOVERY
 	 * 0100(bin) / 0xX4(hex) - ERROR 
+	 * 0101(bin) / 0xX5(hex) - Acknowledgment
 	 * </PRE>
 	 */
 	private byte msgBits;
@@ -67,14 +68,12 @@ public class SFRMMessageClassifier {
 		String segmentType = message.getSegmentType();
 		if (segmentType.equals(SFRMConstant.MSGT_PAYLOAD))
 			msgBits |= 0x01;
-		else if (segmentType.equals(SFRMConstant.MSGT_RECEIPT))
-			msgBits |= 0x02;
 		else if (segmentType.equals(SFRMConstant.MSGT_META))				 
 			msgBits |= 0x00;
-		else if (segmentType.equals(SFRMConstant.MSGT_RECOVERY))
-			msgBits |= 0x03;
 		else if (segmentType.equals(SFRMConstant.MSGT_ERROR))
 			msgBits |= 0x04;  
+		else if (segmentType.equals(SFRMConstant.MSGT_ACK_REQUEST))
+			msgBits |= 0x05;
 	}
 	
 	/**
@@ -110,29 +109,17 @@ public class SFRMMessageClassifier {
 	public boolean isMeta(){
 		return (msgBits | 0xF0) == 0xF0 ? true : false;		
 	}
-	
-	/** 
-	 * @return
-	 * 			true if it is a receipt message.
-	 */
-	public boolean isReceipt(){
-		return (msgBits | 0xF0) == 0xF2 ? true : false;
-	}
-	
-	/** 
-	 * @return
-	 * 			true if it is a recovery message.
-	 */
-	public boolean isRecovery(){
-		return (msgBits | 0xF0) == 0xF3 ? true : false;
-	}
-	
+		
 	/** 
 	 * @return
 	 * 			true if it is a error message.
 	 */
 	public boolean isError(){
 		return (msgBits | 0xF0) == 0xF4 ? true : false;
+	}
+	
+	public boolean isAcknowledgementRequest(){
+		return (msgBits | 0xF0) == 0xF5 ? true : false;
 	}
 	
 	/** 

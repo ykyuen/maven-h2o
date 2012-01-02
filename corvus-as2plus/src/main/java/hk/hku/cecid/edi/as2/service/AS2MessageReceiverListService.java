@@ -22,9 +22,8 @@ import hk.hku.cecid.piazza.commons.soap.WebServicesResponse;
 import java.util.Iterator;
 import java.util.List;
 
+import javax.xml.soap.SOAPBodyElement;
 import javax.xml.soap.SOAPElement;
-
-import org.w3c.dom.Element;
 
 /**
  * AS2MessageReceiverListService
@@ -34,14 +33,38 @@ import org.w3c.dom.Element;
  */
 public class AS2MessageReceiverListService extends WebServicesAdaptor {
 
+	public static final String NAMESPACE = "http://service.as2.edi.cecid.hku.hk/";
+	
     public void serviceRequested(WebServicesRequest request,
             WebServicesResponse response) throws SOAPRequestException,
             DAOException {
 
-        Element[] bodies = request.getBodies();
-        String as2From = getText(bodies, "as2From");
-        String as2To = getText(bodies, "as2To");
-        String strNumOfMessages = getText(bodies, "numOfMessages");
+        String as2From = null;
+        String as2To = null;
+        String strNumOfMessages = null;
+    	
+        boolean wsi = false;
+
+		SOAPBodyElement[] bodies = (SOAPBodyElement[]) request.getBodies();
+      	// WS-I <RequestElement> 
+	    if (bodies != null && bodies.length == 1 && 
+	    		isElement(bodies[0], "RequestElement", NAMESPACE)) {
+	    	
+	    	AS2PlusProcessor.getInstance().getLogger().debug("WS-I Request");
+	    	
+	    	wsi = true;
+	    	
+	    	SOAPElement[] childElement = getChildElementArray(bodies[0]);
+	        as2From = getText(childElement, "as2From");
+	        as2To = getText(childElement, "as2To");
+	        strNumOfMessages = getText(childElement, "numOfMessages");
+	    } else {
+	    	AS2PlusProcessor.getInstance().getLogger().debug("Non WS-I Request");
+	    	
+	    	as2From = getText(bodies, "as2From");
+	    	as2To = getText(bodies, "as2To");
+	    	strNumOfMessages = getText(bodies, "numOfMessages");
+	    }
 
         if (as2To == null || as2From == null || strNumOfMessages == null) {
             throw new SOAPFaultException(SOAPFaultException.SOAP_FAULT_CLIENT,
@@ -83,22 +106,30 @@ public class AS2MessageReceiverListService extends WebServicesAdaptor {
             messageIds[i] = new String(targetMessageDvo.getMessageId());
         }
 
-        generateReply(response, messageIds);
+        generateReply(response, messageIds, wsi);
     }
 
     private void generateReply(WebServicesResponse response,
-            String[] message_ids) throws SOAPRequestException {
+            String[] message_ids, boolean wsi) throws SOAPRequestException {
         try {
-            SOAPElement rootElement = createElement("messageIds", "",
-                    "http://service.as2.edi.cecid.hku.hk/", "MessageIDs");
+    		SOAPElement messageIdsElement = createElement("messageIds", NAMESPACE);
 
             for (int i = 0; i < message_ids.length; i++) {
-                SOAPElement childElement = createText("messageId",
-                        message_ids[i], "http://service.as2.edi.cecid.hku.hk/");
-                rootElement.addChildElement(childElement);
+                SOAPElement childElement = createElement("messageId", NAMESPACE, message_ids[i]);
+                messageIdsElement.addChildElement(childElement);
             }
-
-            response.setBodies(new SOAPElement[] { rootElement });
+            
+        	if (wsi) {
+        		AS2PlusProcessor.getInstance().getLogger().debug("WS-I Response");
+        		
+        		SOAPElement responseElement = createElement("ResponseElement", NAMESPACE);
+                responseElement.addChildElement(messageIdsElement);
+                response.setBodies(new SOAPElement[] { responseElement });        		
+        	} else {
+        		AS2PlusProcessor.getInstance().getLogger().debug("Non WS-I Response");
+        		
+                response.setBodies(new SOAPElement[] { messageIdsElement });        		        		
+        	}
         } catch (Exception e) {
             throw new SOAPRequestException("Unable to generate reply message",
                     e);

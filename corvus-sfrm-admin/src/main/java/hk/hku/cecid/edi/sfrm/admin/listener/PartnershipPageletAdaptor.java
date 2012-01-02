@@ -1,6 +1,3 @@
-/**
- * 
- */
 package hk.hku.cecid.edi.sfrm.admin.listener;
 
 import java.io.IOException;
@@ -25,9 +22,9 @@ import hk.hku.cecid.piazza.commons.dao.DAOException;
 
 import hk.hku.cecid.edi.sfrm.dao.SFRMPartnershipDAO;
 import hk.hku.cecid.edi.sfrm.dao.SFRMPartnershipDVO;
+import hk.hku.cecid.edi.sfrm.spa.SFRMException;
 import hk.hku.cecid.edi.sfrm.spa.SFRMProcessor;
 import hk.hku.cecid.edi.sfrm.spa.SFRMProperties;
-import hk.hku.cecid.edi.sfrm.dao.ds.SFRMPartnershipDSDAO;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.xml.transform.Source;
@@ -36,6 +33,7 @@ import org.apache.commons.fileupload.DiskFileUpload;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUpload;
 import org.apache.commons.fileupload.FileUploadException;
+
 /**
  * @author Patrick Yip
  * @version 1.0.0
@@ -63,14 +61,14 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
             }
             getAllPartnerships(dom);
         } catch (Exception e) {
-           	SFRMProcessor.core.log.debug("Unable to process the partnership page request", e);
+           	SFRMProcessor.getInstance().getLogger().debug("Unable to process the partnership page request", e);
             throw new RuntimeException("Unable to process the partnership page request", e);
         }
         return dom.getSource();
 	}
 	
 	private void getAllPartnerships(PropertyTree dom) throws DAOException{
-		SFRMPartnershipDAO partnershipDAO = (SFRMPartnershipDAO) SFRMProcessor.core.dao.createDAO(SFRMPartnershipDAO.class);
+		SFRMPartnershipDAO partnershipDAO = (SFRMPartnershipDAO) SFRMProcessor.getInstance().getDAOFactory().createDAO(SFRMPartnershipDAO.class);
 		List partnerships = partnershipDAO.findAllPartnerships();
 		Iterator iter = partnerships.iterator();
 		for(int i = 1; iter.hasNext(); i++){
@@ -85,11 +83,11 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 	 * @param dom The DOM object to insert the partnership information to
 	 * @throws DAOException 
 	 */
-	private void getSelectedPartnership(String partnershipId, PropertyTree dom) throws DAOException{
-		SFRMPartnershipDAO partnershipDAO = (SFRMPartnershipDAO) SFRMProcessor.core.dao.createDAO(SFRMPartnershipDAO.class);
+	private void getSelectedPartnership(String partnershipId, PropertyTree dom) throws DAOException, SFRMException{
+		SFRMPartnershipDAO partnershipDAO = (SFRMPartnershipDAO) SFRMProcessor.getInstance().getDAOFactory().createDAO(SFRMPartnershipDAO.class);
 		SFRMPartnershipDVO partnershipDVO = (SFRMPartnershipDVO) partnershipDAO.createDVO();
 		partnershipDVO.setPartnershipId(partnershipId);
-		SFRMProcessor.core.log.info("Partnership ID: " + partnershipId);
+		SFRMProcessor.getInstance().getLogger().info("Partnership ID: " + partnershipId);
 		if(partnershipDAO.retrieve(partnershipDVO)){
 			getPartnership(partnershipDVO, dom, "selected_partnership/");
 		}
@@ -101,16 +99,12 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 	 * @param dom DOM object being insert the partnership information
 	 * @param prefix The xpath location for inserting the partnership information
 	 */
-	private void getPartnership(SFRMPartnershipDVO partnershipDVO, PropertyTree dom, String prefix){
+	private void getPartnership(SFRMPartnershipDVO partnershipDVO, PropertyTree dom, String prefix) throws SFRMException{
 		dom.setProperty(prefix + "partnership_id", partnershipDVO.getPartnershipId());
 		dom.setProperty(prefix + "description", partnershipDVO.getDescription());
 		dom.setProperty(prefix + "partner_endpoint", partnershipDVO.getOrgPartnerEndpoint());
 		dom.setProperty(prefix + "partner_cert_fingerprint", partnershipDVO.getPartnerCertFingerprint());
 		dom.setProperty(prefix + "is_hostname_verified", Boolean.toString(partnershipDVO.isHostnameVerified()));
-		dom.setProperty(prefix + "is_outbound_sign_requested", Boolean.toString(partnershipDVO.isOutboundSignRequested()));
-		dom.setProperty(prefix + "is_outbound_encrypt_requested", Boolean.toString(partnershipDVO.isOutboundEncryptRequested()));
-		dom.setProperty(prefix + "is_inbound_sign_enforced", Boolean.toString(partnershipDVO.isInboundSignEnforced()));
-		dom.setProperty(prefix + "is_inbound_encrypt_enforced", Boolean.toString(partnershipDVO.isInboundEncryptEnforced()));
 		dom.setProperty(prefix + "sign_algorithm", partnershipDVO.getSignAlgorithm());
 		dom.setProperty(prefix + "encrypt_algorithm", partnershipDVO.getEncryptAlgorithm());
 		dom.setProperty(prefix + "retry_max", Integer.toString(partnershipDVO.getRetryMax()));
@@ -169,7 +163,7 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 	}
 	
 	private void modifyPartnership(Hashtable ht, HttpServletRequest request,
-            PropertyTree dom) throws DAOException{
+            PropertyTree dom) throws DAOException, SFRMException{
 		String requestAction = (String) ht.get("request_action");
 		boolean success = false;
 		if(requestAction.equalsIgnoreCase("update")){
@@ -188,19 +182,17 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 	 * @param dom DOM object of the page
 	 * @param request Servlet requset object
 	 * @return whether add action is success, true for success, false otherwise
+	 * @throws SFRMException 
 	 */
-	private boolean addPartnership(Hashtable ht, PropertyTree dom, HttpServletRequest request) throws DAOException{
-		SFRMPartnershipDAO partnershipDAO = (SFRMPartnershipDAO) SFRMProcessor.core.dao.createDAO(SFRMPartnershipDAO.class);
+	private boolean addPartnership(Hashtable ht, PropertyTree dom, HttpServletRequest request) throws DAOException, SFRMException{
+		SFRMPartnershipDAO partnershipDAO = (SFRMPartnershipDAO) SFRMProcessor.getInstance().getDAOFactory().createDAO(SFRMPartnershipDAO.class);
 		SFRMPartnershipDVO partnershipDVO = (SFRMPartnershipDVO) partnershipDAO.createDVO();
-		
 		boolean success = setPartnershipDVO(partnershipDVO, ht, request);
-		
 		//Check whether partnership ID already exist
 		if(partnershipDAO.findPartnershipById((String)ht.get("partnership_id")) != null){
 			request.setAttribute(ATTR_MESSAGE, "Partnership ID already exist");
 			success = false;
 		}
-		
 		if(success){
 			partnershipDAO.create(partnershipDVO);			
 			//If the insertion of the new partnership to database is successful, then upload the user provided partnership to the system specified location
@@ -209,7 +201,8 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 					uploadCertificate(partnershipDVO.getPartnerCertFingerprint(), (InputStream)ht.get("partner_cert"));
 				}
 			}catch(Exception e){
-				SFRMProcessor.core.log.error("Error when uploading the partnership certificate file", e);
+				
+				SFRMProcessor.getInstance().getLogger().error("Error when uploading the partnership certificate file", e);
 			}
 			
 			request.setAttribute(ATTR_MESSAGE, "Partnership added successfully");
@@ -228,19 +221,23 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 	 * @return Whether the update is success, true for success, false otherwise
 	 */
 	private boolean updatePartnership(Hashtable ht, PropertyTree dom, HttpServletRequest request) throws DAOException{
-		SFRMPartnershipDAO partnershipDAO = (SFRMPartnershipDAO) SFRMProcessor.core.dao.createDAO(SFRMPartnershipDAO.class);
+		SFRMPartnershipDAO partnershipDAO = (SFRMPartnershipDAO) SFRMProcessor.getInstance().getDAOFactory().createDAO(SFRMPartnershipDAO.class);
 		SFRMPartnershipDVO partnershipDVO = (SFRMPartnershipDVO) partnershipDAO.createDVO();
 		String partnershipId = (String)ht.get("partnership_id");
 		partnershipDVO.setPartnershipId(partnershipId);
 		partnershipDAO.retrieve(partnershipDVO);
 		boolean success = setPartnershipDVO(partnershipDVO, ht, request);
-		if(success){
-			partnershipDAO.persist(partnershipDVO);
-			if(ht.get("partner_cert") != null){
-				uploadCertificate(partnershipDVO.getPartnerCertFingerprint(), (InputStream)ht.get("partner_cert"));
+//		try{
+			if(success){
+				partnershipDAO.persist(partnershipDVO);
+				if(ht.get("partner_cert") != null){
+					uploadCertificate(partnershipDVO.getPartnerCertFingerprint(), (InputStream)ht.get("partner_cert"));
+				}
+				request.setAttribute(ATTR_MESSAGE, "Partnership updated successfully");
 			}
-			request.setAttribute(ATTR_MESSAGE, "Partnership updated successfully");
-		}
+//		}catch(Exception e){
+//			SFRMProcessor.getInstance().getLogger().error("Upload Error", e);
+//		}
 		return success;
 	}
 	
@@ -251,7 +248,7 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 	 * @return Whether the delete operation is success, true for success, false otherwise 
 	 */
 	private boolean deletePartnership(String partnershipId, HttpServletRequest request) throws DAOException{
-		SFRMPartnershipDAO partnershipDAO = (SFRMPartnershipDAO) SFRMProcessor.core.dao.createDAO(SFRMPartnershipDAO.class);
+		SFRMPartnershipDAO partnershipDAO = (SFRMPartnershipDAO) SFRMProcessor.getInstance().getDAOFactory().createDAO(SFRMPartnershipDAO.class);
 		SFRMPartnershipDVO partnershipDVO = (SFRMPartnershipDVO) partnershipDAO.createDVO();
 		partnershipDVO.setPartnershipId(partnershipId);
 		//partnershipDAO.retrieve(partnershipDVO);
@@ -304,7 +301,7 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 				}
 			}
 		}
-			
+		
 		//Validate retry max
 		try{
 			boolean valid = true;
@@ -337,7 +334,7 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 			}
 		}catch(NumberFormatException nfe){
 			errors.put("retry_interval", "Retry Interval must be an integer");
-		}		
+		}
 		
 		//Validate the uploaded certificate
 		boolean isUploadedCert = ht.get("partner_cert") != null;
@@ -365,63 +362,74 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 	 */
 	private boolean setPartnershipDVO(SFRMPartnershipDVO partnershipDVO, Hashtable ht, HttpServletRequest request){
 		boolean success = true;
-		Hashtable errors = validatePartnership(ht);
-		if(errors.size()!=0){
-			Enumeration keys = errors.keys();
-			request.setAttribute(ATTR_MESSAGE, errors.get((String)keys.nextElement()));
-			
-			if(errors.get("retry_max")!=null){
-				partnershipDVO.setRetryMax(3);
-			}
-			
-			if(errors.get("retry_interval")!=null){
-				partnershipDVO.setRetryInterval(60000);
-			}			
-			success = false;
-		}
-		
-		if(errors.get("retry_max") == null)
-			partnershipDVO.setRetryMax(Integer.parseInt((String) ht.get("retry_max")));
-		if(errors.get("retry_interval") == null)
-			partnershipDVO.setRetryInterval(Integer.parseInt((String) ht.get("retry_interval")));
-		
-		partnershipDVO.setPartnershipId((String)ht.get("partnership_id"));
-		partnershipDVO.setPartnerEndPoint((String)ht.get("partner_endpoint"));		
-		partnershipDVO.setDescription((String)ht.get("description"));
-		partnershipDVO.setSignAlgorithm((String)ht.get("sign_algorithm"));
-		partnershipDVO.setEncryptAlgorithm((String)ht.get("encrypt_algorithm"));
-		partnershipDVO.setIsHostnameVerified(Boolean.valueOf((String)ht.get("is_hostname_verified")).booleanValue());
-		partnershipDVO.setIsOutboundSignRequested(Boolean.valueOf((String)ht.get("is_outbound_sign_requested")).booleanValue());
-		partnershipDVO.setIsOutboundEncryptRequested(Boolean.valueOf((String)ht.get("is_outbound_encrypt_requested")).booleanValue());
-		partnershipDVO.setIsInboundSignEnforced(Boolean.valueOf((String)ht.get("is_inbound_sign_enforced")).booleanValue());
-		partnershipDVO.setIsInboundEncryptEnforced(Boolean.valueOf((String)ht.get("is_inbound_encrypt_enforced")).booleanValue());
-		partnershipDVO.setIsDisabled(Boolean.valueOf((String)ht.get("is_disabled")).booleanValue());
-		
-		//Check if user request to delete the partnership certificate
-		if (ht.get("encrypt_cert_remove") != null) {
-            if (((String) ht.get("encrypt_cert_remove")).equalsIgnoreCase("on")) {
-                partnershipDVO.setPartnerCertFingerprint(null);
-            }
-        }
-		
-		//Get the certificate uploaded by user
-		if(errors.get("partner_cert") == null){
-			boolean isUploadedCert = ht.get("partner_cert") != null;
-			InputStream certInStream = null;
-			if(isUploadedCert){
-				certInStream = (InputStream) ht.get("partner_cert");
+		try{
+			Hashtable errors = validatePartnership(ht);
+			if(errors.size()!=0){
+				Enumeration keys = errors.keys();
+				request.setAttribute(ATTR_MESSAGE, errors.get((String)keys.nextElement()));
 				
-				try {
-					certInStream.reset();
-					String fingerprint = generateX509CertificateFingerprint(certInStream);
-					partnershipDVO.setPartnerCertFingerprint(fingerprint.toUpperCase());
-	            } catch (IOException ioe) {
-	            	request.setAttribute(ATTR_MESSAGE, "Error when reading the partnership certificate");
-	            	success = false;
-	            }catch(Exception e){
-	            	request.setAttribute(ATTR_MESSAGE, "Partnership Certificate Error");
-	            }
+				if(errors.get("retry_max")!=null){
+					partnershipDVO.setRetryMax(3);
+				}
+				if(errors.get("retry_interval")!=null){
+					partnershipDVO.setRetryInterval(60000);
+				}			
+				success = false;
 			}
+			
+			if(errors.get("retry_max") == null)
+				partnershipDVO.setRetryMax(Integer.parseInt((String) ht.get("retry_max")));
+			if(errors.get("retry_interval") == null)
+				partnershipDVO.setRetryInterval(Integer.parseInt((String) ht.get("retry_interval")));
+			
+			partnershipDVO.setPartnershipId((String)ht.get("partnership_id"));
+			partnershipDVO.setPartnerEndPoint((String)ht.get("partner_endpoint"));		
+			partnershipDVO.setDescription((String)ht.get("description"));
+					
+			String signAlg = null;
+			String encryptAlg = null;
+			if(!((String)ht.get("sign_algorithm")).equalsIgnoreCase("none")){
+				signAlg = (String)ht.get("sign_algorithm");
+			}
+			
+			if(!((String)ht.get("encrypt_algorithm")).equalsIgnoreCase("none")){
+				encryptAlg = (String)ht.get("encrypt_algorithm");
+			}
+			
+			partnershipDVO.setSignAlgorithm(signAlg);
+			partnershipDVO.setEncryptAlgorithm(encryptAlg);
+			
+			partnershipDVO.setIsHostnameVerified(Boolean.valueOf((String)ht.get("is_hostname_verified")).booleanValue());
+			partnershipDVO.setIsDisabled(Boolean.valueOf((String)ht.get("is_disabled")).booleanValue());
+			
+			//Check if user request to delete the partnership certificate
+			if (ht.get("encrypt_cert_remove") != null) {
+	            if (((String) ht.get("encrypt_cert_remove")).equalsIgnoreCase("on")) {
+	                partnershipDVO.setPartnerCertFingerprint(null);
+	            }
+	        }
+			
+			//Get the certificate uploaded by user
+			if(errors.get("partner_cert") == null){
+				boolean isUploadedCert = ht.get("partner_cert") != null;
+				InputStream certInStream = null;
+				if(isUploadedCert){
+					certInStream = (InputStream) ht.get("partner_cert");
+					
+					try {
+						certInStream.reset();
+						String fingerprint = generateX509CertificateFingerprint(certInStream);
+						partnershipDVO.setPartnerCertFingerprint(fingerprint.toUpperCase());
+		            } catch (IOException ioe) {
+		            	request.setAttribute(ATTR_MESSAGE, "Error when reading the partnership certificate");
+		            	success = false;
+		            }catch(Exception e){
+		            	request.setAttribute(ATTR_MESSAGE, "Partnership Certificate Error");
+		            }
+				}
+			}
+		}catch(Exception e){
+			SFRMProcessor.getInstance().getLogger().error("Error which uplaoding the cert", e);
 		}
 
 		return success;
@@ -439,8 +447,17 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 		X509Certificate cert = (X509Certificate) cf.generateCertificate(fis);
 		MessageDigest md = MessageDigest.getInstance("SHA-1");
 		byte fingerprint[] = md.digest(cert.getEncoded());
-		return StringUtilities.toHexString(fingerprint);		
+		return toHexString(fingerprint);		
 	}
+	
+	private String toHexString(byte[] b) throws Exception {
+  	  	String result = "";
+  	  	for (int i=0; i < b.length; i++) {
+  	  		result += Integer.toString( ( b[i] & 0xff ) + 0x100, 16).substring( 1 );
+  	  	}
+  	  	return result;
+  	}
+	
 	/**
 	 * Upload the certificate to the application defined location at [PLUGIN_FOLDER]/hk.hku.cecid.edi.sfrm/conf/hk/hku/cecid/edi/sfrm/conf/sfrm.properties.xml, trusted-certificates element
 	 * @param filename Filename to uplaod to the specified location
@@ -454,7 +471,7 @@ public class PartnershipPageletAdaptor extends AdminPageletAdaptor {
 			IOHandler.pipe(certInStream, certOutStream);
 			certOutStream.close();
 		}catch(Exception e){
-			SFRMProcessor.core.log.error("Error when uploading the partnership certificate file", e);
+			SFRMProcessor.getInstance().getLogger().error("Error when uploading the partnership certificate file", e);
 		}
 	}
 }

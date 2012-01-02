@@ -9,8 +9,6 @@
 
 package hk.hku.cecid.edi.as2.dao;
 
-import java.sql.SQLException;
-
 import hk.hku.cecid.piazza.commons.dao.ds.DataSourceDVO;
 
 /**
