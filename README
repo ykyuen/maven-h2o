@@ -1,62 +1,15 @@
 This is the Maven version of H2O which i did when i was working in CECID in 2009-2010. It is under GNU General Public License (GPL v2).
-
-******************
-* Pre-requisites *
-******************
-1. JCE update
-  - Download the JCR update @ http://www.oracle.com/technetwork/java/javase/downloads/jce-6-download-429243.html
-  - Replace the local_policy.jar and US_export_policy.jar in JAVA_HOME/jre/lib/security
-  
-2. Import the following dependencies to you maven local repository (Or upload them to your maven repository such as Archiva if you have one)
-  - jar: ojdbc14
-  - url: http://www.oracle.com/technetwork/database/features/jdbc/index-091264.html
-  - version: 10.2.0.1.0
-  - command: mvn install:install-file -DgroupId=com.oracle -DartifactId=ojdbc14 -Dversion=10.2.0.1.0 -Dpackaging=jar -Dfile=C:/Users/Administrator/Desktop/ojdbc14.jar
-
-  - jar: jmxri
-  - url: http://www.oracle.com/technetwork/java/javase/tech/download-jsp-141676.html
-  - version: 1.2.1
-  - command: mvn install:install-file -DgroupId=com.sun.jmx -DartifactId=jmxri -Dversion=1.2.1 -Dpackaging=jar -Dfile=C:/Users/Administrator/Desktop/jmxri.jar
-
-  - jar: jmxtools
-  - url: http://www.oracle.com/technetwork/java/javase/tech/download-jsp-141676.html
-  - version: 1.2.1
-  - command: mvn install:install-file -DgroupId=com.sun.jdmk -DartifactId=jmxtools -Dversion=1.2.1 -Dpackaging=jar -Dfile=C:/Users/Administrator/Desktop/jmxtools.jar
-
-  - jar: jms
-  - url: http://www.java2s.com/Code/Jar/STUVWXYZ/Downloadjavaxjms11jar.htm
-  - version: 1.1
-  - command: mvn install:install-file -DgroupId=javax.jms -DartifactId=jms -Dversion=1.1 -Dpackaging=jar -Dfile=C:/Users/Administrator/Desktop/javax.jms-1.1.jar
-
-  - jar: tidy
-  - url: http://repo.enonic.com/nexus/content/repositories/public/tidy/tidy/1.0/
-  - version: 1.0
-  - command: mvn install:install-file -DgroupId=tidy -DartifactId=tidy -Dversion=1.0 -Dpackaging=jar -Dfile=C:/Users/Administrator/Desktop/tidy-1.0.jar
-
-  - jar: wrapper
-  - url: http://olex.openlogic.com/packages/javaservicewrapper/3.3.9
-  - version: 3.3.9
-  - command: mvn install:install-file -DgroupId=wrapper -DartifactId=wrapper -Dversion=3.3.9 -Dpackaging=jar -Dfile=C:/Users/Administrator/Desktop/wrapper.jar
-
-  - jar: ant-installer
-  - url: http://www.java2s.com/Code/Jar/ABC/Downloadantinstallerjar.htm
-  - version: 1.0
-  - command: mvn install:install-file -DgroupId=ant-installer -DartifactId=ant-installer -Dversion=1.0 -Dpackaging=jar -Dfile=C:/Users/Administrator/Desktop/ant-installer.jar
-
-  - jar: ant-installer-ext
-  - url: http://www.java2s.com/Code/Jar/a/Downloadantinstallerextjar.htm
-  - version: 1.0
-  - command: mvn install:install-file -DgroupId=ant-installer-ext -DartifactId=ant-installer-ext -Dversion=1.0 -Dpackaging=jar -Dfile=C:/Users/Administrator/Desktop/ant-installer-ext.jar
-
-
   
 *******************
 * Run maven build *
 *******************
 1. Checkout the git repo
   - git clone git@github.com:ykyuen/maven-h2o.git
-  
-2. Go to the project root directory and run
+ 
+2. Install required 3rd party libraries into Maven local repository
+  - mvn clean
+
+3. Go to the project root directory and run
   - mvn install
   
 3. There will be 3 built folders under maven-h2o/target/
@@ -70,7 +23,6 @@ This is the Maven version of H2O which i did when i was working in CECID in 2009
     * This is the h2o which can be run by the maven-jetty-plugin. After the build, go to maven-h2o/corvus and run mvn jetty:run.
     
 4. You can decide what to build in maven-h2o/pom.xml under <!-- Build Selection -->
-
 
 **********************
 * Skip the test case *
