@@ -1,0 +1,38 @@
+Partnership HTTP Client init at Thu Aug 05 15:10:15 HKT 2010
+
+Sending Partnership HTTP Request with following configuration
+------------------------------------------------------------------
+Partnership Operation : delete
+Key: dataKeyName0		Value: testFormParamContent0
+Key: dataKeyName1		Value: testFormParamContent1
+Key: dataKeyName2		Value: testFormParamContent2
+
+------------------------------------------------------------------
+
+[Stack Trace] hk.hku.cecid.corvus.http.PartnershipOpVerifer.validate(PartnershipOpVerifer.java:198)
+[Stack Trace] hk.hku.cecid.corvus.http.PartnershipSender.onResponse(PartnershipSender.java:225)
+[Stack Trace] hk.hku.cecid.corvus.http.HttpSender.run(HttpSender.java:345)
+[Stack Trace] hk.hku.cecid.corvus.http.PartnershipSenderUnitTest.testDeletePartnership(PartnershipSenderUnitTest.java:180)
+[Stack Trace] sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+[Stack Trace] sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
+[Stack Trace] sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+[Stack Trace] java.lang.reflect.Method.invoke(Method.java:597)
+[Stack Trace] junit.framework.TestCase.runTest(TestCase.java:168)
+[Stack Trace] junit.framework.TestCase.runBare(TestCase.java:134)
+[Stack Trace] junit.framework.TestResult$1.protect(TestResult.java:110)
+[Stack Trace] junit.framework.TestResult.runProtected(TestResult.java:128)
+[Stack Trace] junit.framework.TestResult.run(TestResult.java:113)
+[Stack Trace] junit.framework.TestCase.run(TestCase.java:124)
+[Stack Trace] junit.framework.TestSuite.runTest(TestSuite.java:232)
+[Stack Trace] junit.framework.TestSuite.run(TestSuite.java:227)
+[Stack Trace] org.junit.internal.runners.JUnit38ClassRunner.run(JUnit38ClassRunner.java:83)
+[Stack Trace] org.apache.maven.surefire.junit4.JUnit4TestSet.execute(JUnit4TestSet.java:62)
+[Stack Trace] org.apache.maven.surefire.suite.AbstractDirectoryTestSuite.executeTestSet(AbstractDirectoryTestSuite.java:140)
+[Stack Trace] org.apache.maven.surefire.suite.AbstractDirectoryTestSuite.execute(AbstractDirectoryTestSuite.java:127)
+[Stack Trace] org.apache.maven.surefire.Surefire.run(Surefire.java:177)
+[Stack Trace] sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+[Stack Trace] sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
+[Stack Trace] sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+[Stack Trace] java.lang.reflect.Method.invoke(Method.java:597)
+[Stack Trace] org.apache.maven.surefire.booter.SurefireBooter.runSuitesInProcess(SurefireBooter.java:345)
+[Stack Trace] org.apache.maven.surefire.booter.SurefireBooter.main(SurefireBooter.java:1009)
